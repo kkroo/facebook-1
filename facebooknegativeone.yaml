@@ -1,0 +1,6 @@
+#DB settings
+db_file:         'facebooknegativeone.sqlite3'
+
+#App settings
+app_number:      1000
+number_prefix:   999
