@@ -1,10 +1,11 @@
-class AuthError(Excpetion):
+class AuthError(Exception):
   pass
 
 class FacebookSession:
   """ This class is in interface to the Facebook Graph for a particular user"""
   def __init__(self):
     self.authenticated = False
+#    self.profile = FacebookUser()
 
   def login(self, email, password):
     """ Log the user in and cache the session
