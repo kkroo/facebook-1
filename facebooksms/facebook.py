@@ -39,7 +39,7 @@ class FacebookNegativeOne:
       # Parameter substitution doesn't work for table names, but we scrub
       # unsafe names in the accessors for the table name properties so these
       # should be fine.
-      self.db.execute("CREATE TABLE IF NOT EXISTS %s (number TEXT, email TEXT, password TEXT, last_fetch REAL, auth_ok INTEGER, UNIQUE(number) ON CONFLICT IGNORE)" % self.conf.t_users)
+      self.db.execute("CREATE TABLE IF NOT EXISTS %s (number TEXT not NULL, email TEXT, password TEXT, last_fetch REAL, auth_ok INTEGER, UNIQUE(number) ON CONFLICT IGNORE)" % self.conf.t_users)
       self.db.commit()
 
   def fetch_updates(self, n):
@@ -47,7 +47,12 @@ class FacebookNegativeOne:
         and select the top n users. Fetch updates, and
         push to user
     """
-    raise NotImplementedError
+    self.log.debug("Fetching updates for %u users" % n)
+    r = self.db.execute("SELECT number FROM %s WHERE auth_ok = 1 LIMIT 0, ? ORDER BY last_fetch" % self.conf.t_users, (n,))
+    result = r.fetchall()
+    for user_row in result:
+      user = User(self, user_row[0])
+
 
   def handle_incoming(self, message):
     self.log.info("Incoming: %s" % message)
@@ -57,16 +62,18 @@ class FacebookNegativeOne:
         return
     if not User.is_registered(message.sender):
         self.register_user()
+        return
     self.user = User(self, message.sender)
     try:
         self.user.start_session()
     except AuthError:
-        self.log.debug("Failed to auth login")
-        self.reply("Failed to authenticate. Please send your credentials to %s " % \
+        self.log.debug("Failed to auth login for user %s" % message.sender)
+        self.reply("Facebook failed to authenticate. Please re-send your credentials to %s " % \
                     self.conf.app_number)
+        self.user.set_auth() #reset credentials
         return
     except Exception as e:
-        self.log.debug("Failed to login: %s" % e)
+        self.log.error("Failed to login user %s: %s" % message.sender,e)
         return
 
     if self.cmd_handler.looks_like_command(message):
@@ -90,13 +97,52 @@ class FacebookNegativeOne:
     post = Post(self.number_to_id(message.sender), self.number_to_id(message.recipient), message.body)
 
   def register_user(self):
-    email, password = self.msg.body.split("\n")
-    if not parseaddr(email)[1] or not password or password.contains("\n"):
-        self.reply("Registration Failed, please enter a valid email address \
-                    on one line and a valid password on the next line")
+    # Put user in table if doesnt exist
+    if not User.exists(self, self.msg.sender):
+      if not User.register(self, self.msg.sender):
+        self.reply("This number is already associated with an account.")
         return
-    User.register(self.msg.sender, email, password)
-    
+
+      self.reply("Welcome to the Facebook SMS service. " + \
+                  "To begin please enter your email address.")
+      return
+
+    # sanity check user is registered
+    u = User(self, self.msg.sender)
+    if not u.number == self.msg.sender:
+     return
+
+    # state machines to collect user email and password
+    if not self.collect_email(u) and not self.collect_password(u):
+      return
+
+    # TODO how do we want to handle Internet connectivity issues for registration auth?
+    if not u.is_active:
+      self.reply("Registration failed. Please enter your email address")
+      u.set_auth() # reset registration to retry process
+      return
+
+    self.reply("Your account is now setup! " + \
+        'Send "help" to %s to learn how to use the service.' % self.conf.app_number)
+
+  def collect_email(self, user):
+    if user.email is None:
+      email = self.msg.body.strip()
+      if not parseaddr(email)[1]:
+        self.reply("Please enter a valid email address")
+        return False
+      return user.set_auth(email=email)
+    return True
+
+  def collect_password(self, user):
+    if user.password is None:
+      password = self.msg.body # TODO Should we strip passwords?
+      if not len(password) > 0:
+        self.reply("Please enter a valid password")
+        return False
+      return user.set_auth(password=password)
+    return True
+
   def reply(self, body):
      """ Convenience function to respond to the sender of the app's message.
      """

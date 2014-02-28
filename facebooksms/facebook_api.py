@@ -19,6 +19,8 @@ class FacebookSession:
     raise NotImplementedError
   def get_timeline_posts(self):
     raise NotImplementedError
+  def get_private_messages(self):
+    raise NotImplementedError
   def get_post(self, post_id):
     raise NotImplementedError
   def push_post(self, post):
