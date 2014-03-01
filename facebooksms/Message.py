@@ -1,4 +1,3 @@
-from facebook-1 import *
 class Message:
   def __init__(self, sender, recipient, subject, body):
     self.sender = sender

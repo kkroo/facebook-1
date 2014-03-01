@@ -6,7 +6,7 @@ class Config:
     self.log = logger
 
   # verify safety of db table names
-    self._scrub(self.config_dict['t_list'])
+    self._scrub(self.config_dict['t_users'])
 
     self.db_conn = sqlite3.connect(self.db_file)
     self.log.debug("Connnected to DB: %s" % self.db_file)
@@ -34,4 +34,9 @@ class Config:
   @property
   def number_prefix(self):
     return self.config_dict['number_prefix']
+
+  @property
+  def sender_type(self):
+    return self.config_dict['sender_type']
+
 

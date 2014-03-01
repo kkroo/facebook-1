@@ -39,9 +39,9 @@ class FacebookNegativeOne:
       # Parameter substitution doesn't work for table names, but we scrub
       # unsafe names in the accessors for the table name properties so these
       # should be fine.
-      self.db.execute("CREATE TABLE IF NOT EXISTS %s " + \
-          "(number TEXT not NULL, email TEXT, password TEXT, last_fetch REAL " + \
-          "UNIQUE(number) ON CONFLICT IGNORE)" % self.conf.t_users)
+      self.db.execute("CREATE TABLE IF NOT EXISTS %s " % self.conf.t_users + \
+          "(number TEXT not NULL UNIQUE ON CONFLICT IGNORE, " + \
+          "email TEXT, password TEXT, last_fetch INTEGER )" )
       self.db.commit()
 
   def fetch_updates(self, n):
@@ -50,9 +50,9 @@ class FacebookNegativeOne:
         push to user
     """
     self.log.debug("Fetching updates for %u users" % n)
-    r = self.db.execute("SELECT number FROM %s " + \
+    r = self.db.execute("SELECT number FROM %s " % (self.conf.t_users,) + \
           "WHERE email is not NULL and password is not NULL " + \
-          "LIMIT 0, ? ORDER BY last_fetch" % self.conf.t_users, (n,))
+          "ORDER BY last_fetch ASC LIMIT 0, %u" % (int(n),))
     result = r.fetchall()
     for user_row in result:
       user = User(self, user_row[0])
@@ -71,13 +71,13 @@ class FacebookNegativeOne:
       private_messages = user.fb.get_private_messages()
       self.log.debug("Forwarding %d private messages for user %s" % len(private_messages), user.number)
       for pm in private_messages:
-        m = Message(self.id_to_number(pm.sender), user.number, None, pm.body)
+        m = Message(self.id_to_number(pm.sender), user.number, "%s" % pm.timestamp, pm.body)
         self.send(m)
 
       home_feed_posts = user.fb.get_home_feed_posts()
       self.log.debug("Forwarding %d home feed posts for user %s" % len(home_feed_posts), user.number)
       for post in home_feed_posts:
-        m = Message(self.id_to_number(post.sender), user.number, None, pm.body)
+        m = Message(self.id_to_number(post.sender.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
         self.send(m)
 
       user.update_last_fetch()
@@ -86,7 +86,7 @@ class FacebookNegativeOne:
     self.log.info("Incoming: %s" % message)
     self.msg = message
     if not message.is_valid():
-        log.debug("Ignoring invalid message")
+        self.log.debug("Ignoring invalid message")
         return
     if not User.is_registered(message.sender):
         self.register_user()
@@ -122,7 +122,9 @@ class FacebookNegativeOne:
       return number[self.conf.number_prefix:]
 
   def post(self, message):
-    post = Post(self.number_to_id(message.sender), self.number_to_id(message.recipient), message.body)
+    post = Post(self.user.fb.profile, FacebookUser(self.number_to_id(message.recipient)), message.body)
+    self.user.fb.push_post(post)
+    #TODO how do we handle delivery failures?
 
   def register_user(self):
     # Put user in table if doesnt exist

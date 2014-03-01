@@ -1,6 +1,12 @@
 #DB settings
-db_file:         'facebooknegativeone.sqlite3'
+db_file:         'conf/facebooknegativeone.sqlite3'
+
+#DB Schema
+t_users:         'users'
 
 #App settings
 app_number:      1000
 number_prefix:   999
+
+# Sender settings
+sender_type:     'test'
