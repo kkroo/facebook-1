@@ -1,6 +1,6 @@
 import time
+import re
 from facebooksms import * 
-from email.utils import parseaddr
 
 class FacebookNegativeOne:
   def __init__(self, conf):
@@ -85,10 +85,10 @@ class FacebookNegativeOne:
   def handle_incoming(self, message):
     self.log.info("Incoming: %s" % message)
     self.msg = message
-    if not message.is_valid():
-        self.log.debug("Ignoring invalid message")
-        return
-    if not User.is_registered(message.sender):
+    # if not message.is_valid():
+    #     self.log.debug("Ignoring invalid message")
+    #     return
+    if not User.is_registered(self, message.sender):
         self.register_user()
         return
     self.user = User(self, message.sender)
@@ -140,10 +140,16 @@ class FacebookNegativeOne:
     # sanity check user is registered
     u = User(self, self.msg.sender)
     if not u.number == self.msg.sender:
-     return
+      return
 
-    # state machines to collect user email and password
-    if not self.collect_email(u) and not self.collect_password(u):
+    # state machine to collect user email
+    if not u.email:
+      if self.collect_email(u):
+        self.reply("Please enter your password")
+      return
+
+    # state machine to collect user password
+    if not u.password and not self.collect_password(u):
       return
 
     # TODO how do we want to handle Internet connectivity issues for registration auth?
@@ -156,25 +162,32 @@ class FacebookNegativeOne:
         'Send "help" to %s to learn how to use the service.' % self.conf.app_number)
 
   def collect_email(self, user):
+    self.log.debug("Collecting email for user %s" % user.number)
     if user.email is None:
-      email = self.msg.body.strip()
-      if not parseaddr(email)[1]:
-        self.reply("Please enter a valid email address")
-        return False
+      email = self.msg.body.strip().lower()
+      # does this pattern encompass all emails?
+      if not re.match('^[_.0-9a-z-+]+@([0-9a-z][0-9a-z-]+.)+[a-z]{2,6}$', email):
+          self.reply("Please enter a valid email address")
+          return False
       return user.set_auth(email=email)
     return True
 
   def collect_password(self, user):
+    self.log.debug("Collecting password for user %s" % user.number)
     if user.password is None:
       password = self.msg.body # TODO Should we strip passwords?
       if not len(password) > 0:
         self.reply("Please enter a valid password")
         return False
-      return user.set_auth(password=password)
+      return user.set_auth(email=user.email, password=password)
     return True
 
   def reply(self, body):
      """ Convenience function to respond to the sender of the app's message.
      """
      m = Message(self.conf.app_number, self.msg.sender, None, body)
+     self.send(m)
 
+  def send(self, msg):
+    self.log.debug("Sending: %s" % msg)
+    self.msg_sender.send_sms(msg.sender, msg.recipient, msg.subject, msg.body)

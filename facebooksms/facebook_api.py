@@ -5,9 +5,9 @@ class FacebookSessionProvider:
   def __init__(self, app):
     self.app = app
   def new_session(self):
-    return FacebookSession()
+    return FacebookTestSession()
 
-class FacebookSession:
+class FacebookTestSession:
   """ This class is in interface to the Facebook Graph for a particular user"""
   def __init__(self):
     self.profile = None
@@ -16,7 +16,9 @@ class FacebookSession:
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
     self.profile = FacebookUser(None, None)
-    raise NotImplementedError
+    if password != "password":
+      raise AuthError()
+
   def get_friend_list(self):
     raise NotImplementedError
   def find_friend(self, name):
@@ -39,22 +41,22 @@ class FacebookUser:
     return '%s (#%d)' % (self.name, self.facebook_id)
 
 class Post:
-  def __init__(self, sender, recepient, body, post_id=None, timestamp=None):
+  def __init__(self, sender, recipient, body, post_id=None, timestamp=None):
     self.post_id = post_id
     self.sender = sender
-    self.recepient = recepient
+    self.recipient = recipient
     self.timestamp = timestamp if timestamp else time.gmtime(0)
     self.body = body
 
   def is_valid(self):
-    return self.sender and self.recepient and self.timestamp and self.body
+    return self.sender and self.recipient and self.timestamp and self.body
 
   def is_posted(self):
     return self.post_id != None
 
   def __str__(self):
     return "from='%s' to='%s' timestamp='%d' msg='%s'" % (self.sender,
-                                                          self.recepient,
+                                                          self.recipient,
                                                           self.timestamp,
                                                           self.body)
 
