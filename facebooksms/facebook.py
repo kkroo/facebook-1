@@ -8,7 +8,7 @@ class FacebookNegativeOne:
     self.user = None
     self.conf = conf
     self.db = conf.db_conn
-    self.session_handler
+    self.session_provider = FacebookSessionProvider(self)
     self.cmd_handler = CommandHandler(self)
     self.msg_sender = self._init_sender(self.conf.sender_type)
     self._init_db()
@@ -39,7 +39,9 @@ class FacebookNegativeOne:
       # Parameter substitution doesn't work for table names, but we scrub
       # unsafe names in the accessors for the table name properties so these
       # should be fine.
-      self.db.execute("CREATE TABLE IF NOT EXISTS %s (number TEXT not NULL, email TEXT, password TEXT, last_fetch REAL, auth_ok INTEGER, UNIQUE(number) ON CONFLICT IGNORE)" % self.conf.t_users)
+      self.db.execute("CREATE TABLE IF NOT EXISTS %s " + \
+          "(number TEXT not NULL, email TEXT, password TEXT, last_fetch REAL " + \
+          "UNIQUE(number) ON CONFLICT IGNORE)" % self.conf.t_users)
       self.db.commit()
 
   def fetch_updates(self, n):
@@ -48,11 +50,37 @@ class FacebookNegativeOne:
         push to user
     """
     self.log.debug("Fetching updates for %u users" % n)
-    r = self.db.execute("SELECT number FROM %s WHERE auth_ok = 1 LIMIT 0, ? ORDER BY last_fetch" % self.conf.t_users, (n,))
+    r = self.db.execute("SELECT number FROM %s " + \
+          "WHERE email is not NULL and password is not NULL " + \
+          "LIMIT 0, ? ORDER BY last_fetch" % self.conf.t_users, (n,))
     result = r.fetchall()
     for user_row in result:
       user = User(self, user_row[0])
+      try:
+        user.start_session()
+      except AuthError:
+        self.log.debug("Auth failed for user %s with email %s" % user.number, user.email)
+        m = Message(self.conf.app_number, user.number, None, \
+              "The Facebook SMS service failed to verify your credentials. " + \
+              "Please send your email address to %s to resume service" % self.conf.app_number)
+        user.set_auth()
+        self.send(m)
+      except Exception as e:
+        self.app.log.error("Something bad happened while starting session for user %s: %s" % self.number, e)
 
+      private_messages = user.fb.get_private_messages()
+      self.log.debug("Forwarding %d private messages for user %s" % len(private_messages), user.number)
+      for pm in private_messages:
+        m = Message(self.id_to_number(pm.sender), user.number, None, pm.body)
+        self.send(m)
+
+      home_feed_posts = user.fb.get_home_feed_posts()
+      self.log.debug("Forwarding %d home feed posts for user %s" % len(home_feed_posts), user.number)
+      for post in home_feed_posts:
+        m = Message(self.id_to_number(post.sender), user.number, None, pm.body)
+        self.send(m)
+
+      user.update_last_fetch()
 
   def handle_incoming(self, message):
     self.log.info("Incoming: %s" % message)
@@ -68,7 +96,7 @@ class FacebookNegativeOne:
         self.user.start_session()
     except AuthError:
         self.log.debug("Failed to auth login for user %s" % message.sender)
-        self.reply("Facebook failed to authenticate. Please re-send your credentials to %s " % \
+        self.reply("Facebook SMS failed to authenticate. Please re-send your credentials to %s " % \
                     self.conf.app_number)
         self.user.set_auth() #reset credentials
         return

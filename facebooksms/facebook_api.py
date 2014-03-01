@@ -1,23 +1,27 @@
 class AuthError(Exception):
   pass
 
+class FacebookSessionProvider:
+  def __init__(self, app):
+    self.app = app
+  def new_session(self):
+    return FacebookSession()
+
 class FacebookSession:
   """ This class is in interface to the Facebook Graph for a particular user"""
   def __init__(self):
-    self.authenticated = False
-#    self.profile = FacebookUser()
+    self.profile = None
 
   def login(self, email, password):
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
+    self.profile = FacebookUser(None, None)
     raise NotImplementedError
   def get_friend_list(self):
     raise NotImplementedError
   def find_friend(self, name):
     raise NotImplementedError
   def get_home_feed_posts(self):
-    raise NotImplementedError
-  def get_timeline_posts(self):
     raise NotImplementedError
   def get_private_messages(self):
     raise NotImplementedError
@@ -30,9 +34,6 @@ class FacebookUser:
   def __init__(self, facebook_id, name):
     self.facebook_id = facebook_id
     self.name = name
-
-  def get_number(self):
-    raise NotImplementedError
 
   def __str__(self):
     return '%s (#%d)' % (self.name, self.facebook_id)

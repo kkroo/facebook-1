@@ -1,7 +1,8 @@
+from time import time
 class User:
   def __init__(self, app, number):
     self.app = app
-    self.session = User.session_provider()
+    self.fb = app.session_provider.new_session()
 
     self.number = None
     self.email = None
@@ -18,15 +19,24 @@ class User:
 
 
   def start_session(self):
-    self.session.login(self.email, self.password)
+    self.fb.login(self.email, self.password)
 
   """ return True/False"""
   def set_auth(self, email=None, password=None):
     self.app.log.debug("Setting auth for user: %s" % self.number)
     if self.number is None:
       return
-    self.app.db.execute("UPDATE OR IGNORE %s SET email=?, password=? WHERE number=?" % self.conf.t_name, (number, email, password, number))
+    self.app.db.execute("UPDATE OR IGNORE %s SET email=?, password=? WHERE number=?" % self.conf.t_name, (email, password, number))
     self.app.db.commit()
+
+  def update_last_fetch():
+    self.app.log.debug("Setting last fetch for user: %s" % self.number)
+    if self.number is None:
+      return
+    self.app.db.execute("UPDATE OR IGNORE %s SET last_fetch =? WHERE number=?" % self.conf.t_name, ("%d" % time(), email, password, number))
+    self.app.db.commit()
+
+
 
   def delete(self):
     raise NotImplementedError
@@ -38,7 +48,9 @@ class User:
         self.start_session()
         return True
       except AuthError:
-        return False
+        self.app.log.debug("Auth failed for user %s with email %s" % self.number, self.email)
+      except Exception as e:
+        self.app.log.error("Something bad happened while starting session for user %s: %s" % self.number, e)
     return False
 
   @property
