@@ -1,36 +1,74 @@
+import logging
+from time import time
+
 class AuthError(Exception):
   pass
 
 class FacebookSessionProvider:
-  def __init__(self, app):
-    self.app = app
-  def new_session(self):
-    return FacebookTestSession()
-
-class FacebookTestSession:
   """ This class is in interface to the Facebook Graph for a particular user"""
+  def login(self, email, password):
+    """ Log the user in and cache the session
+      This method can throw a whole bunch of exceptions, be ready to catch them """
+    raise NotImplementedError
+  def get_friend_list(self):
+    raise NotImplementedError
+  def find_friend(self, name_query):
+    raise NotImplementedError
+  def get_home_feed_posts(self, earliest_timestamp):
+    raise NotImplementedError
+  def get_messages(self, earliest_timestamp):
+    raise NotImplementedError
+  def post_status(self, post):
+    raise NotImplementedError
+  def post_message(self, post):
+    raise NotImplementedError
+  @property
+  def profile(self):
+    """ Returns an instance of type FacebookUser"""
+    raise NotImplementedError
+
+class FacebookTestSession(FacebookSessionProvider):
+  """ This is a slug test class for the Facebook Session Provider"""
   def __init__(self):
     self.profile = None
+    self.logger = logging.getLogger("testsession")
 
   def login(self, email, password):
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
-    self.profile = FacebookUser(None, None)
     if password != "password":
       raise AuthError()
 
+    psuedo_id = abs(hash(email))
+    psuedo_name = email.split('@')[0]
+    self.profile = FacebookUser(psuedo_id, psuedo_name)
+    self.friends = [FacebookUser(123, "Omar Ramadan"), FacebookUser(124, "John Doe") ]
+
   def get_friend_list(self):
-    raise NotImplementedError
-  def find_friend(self, name):
-    raise NotImplementedError
-  def get_home_feed_posts(self):
-    raise NotImplementedError
-  def get_private_messages(self):
-    raise NotImplementedError
-  def get_post(self, post_id):
-    raise NotImplementedError
-  def push_post(self, post):
-    raise NotImplementedError
+    return self.friends
+
+  def find_friend(self, name_query):
+    query = name.lower().strip()
+    results = filter(lambda user: query in user.name.lower(), self.get_friend_list())
+    self.logger.info("Friends matching query %s: %d/$d" % \
+        (query, len(results), len(self.get_friend_list())))
+    return results
+
+  def get_home_feed_posts(self, earliest_timestamp):
+    return [Post(self.friends[1], self.friends[1], "It's a beautiful day.", 1234, time())]
+
+  def get_messages(self, earliest_timestamp):
+    return [Post(self.friends[1], self.friends[0], "Congrats you got a PM!", 3456, time())]
+
+  def post_status(self, post):
+    self.logger.info("Posting status %s" % post)
+
+  def post_message(self, post):
+    self.logger.info("Posting message %s" % post)
+
+  @property
+  def profile(self):
+    return self.profile
 
 class FacebookUser:
   def __init__(self, facebook_id, name):
@@ -45,10 +83,13 @@ class Post:
     self.post_id = post_id
     self.sender = sender
     self.recipient = recipient
-    self.timestamp = timestamp if timestamp else time.gmtime(0)
+    self.timestamp = timestamp if timestamp else time()
     self.body = body
 
   def is_valid(self):
+    if not isinstance(self.sender, FacebookUser) or not isinstance(self.recipient, FacebookUser):
+      raise ValueError("Expecting sender and recepient to be of type FacebookUser")
+
     return self.sender and self.recipient and self.timestamp and self.body
 
   def is_posted(self):

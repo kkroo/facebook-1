@@ -8,12 +8,17 @@ class FacebookNegativeOne:
     self.user = None
     self.conf = conf
     self.db = conf.db_conn
-    self.session_provider = FacebookSessionProvider(self)
+    self.session_provider = self._init_session_provider(self.conf.provider_type)
     self.cmd_handler = CommandHandler(self)
     self.msg_sender = self._init_sender(self.conf.sender_type)
-    self._init_db()
+    self._init_db(True)
     self.log = self.conf.log
     self.log.debug("Init done.")
+
+  def _init_session_provider(self, provider_type):
+      if provider_type == "test":
+          return FacebookTestSession
+      raise ValueError("No FB session provider of type '%s' exists." % provider_type)
 
   def _init_sender(self, sender_type):
       """ Returns a Sender object according to the specified sender type.
@@ -50,12 +55,13 @@ class FacebookNegativeOne:
         push to user
     """
     self.log.debug("Fetching updates for %u users" % n)
-    r = self.db.execute("SELECT number FROM %s " % (self.conf.t_users,) + \
+    r = self.db.execute("SELECT number, last_fetch FROM %s " % (self.conf.t_users,) + \
           "WHERE email is not NULL and password is not NULL " + \
           "ORDER BY last_fetch ASC LIMIT 0, %u" % (int(n),))
     result = r.fetchall()
     for user_row in result:
       user = User(self, user_row[0])
+      last_fetch = user_row[1]
       try:
         user.start_session()
       except AuthError:
@@ -68,16 +74,16 @@ class FacebookNegativeOne:
       except Exception as e:
         self.app.log.error("Something bad happened while starting session for user %s: %s" % self.number, e)
 
-      private_messages = user.fb.get_private_messages()
+      private_messages = user.fb.get_messages(last_fetch)
       self.log.debug("Forwarding %d private messages for user %s" % len(private_messages), user.number)
       for pm in private_messages:
-        m = Message(self.id_to_number(pm.sender), user.number, "%s" % pm.timestamp, pm.body)
+        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s" % pm.timestamp, pm.body)
         self.send(m)
 
-      home_feed_posts = user.fb.get_home_feed_posts()
+      home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
       self.log.debug("Forwarding %d home feed posts for user %s" % len(home_feed_posts), user.number)
       for post in home_feed_posts:
-        m = Message(self.id_to_number(post.sender.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
+        m = Message(self.id_to_number(user.fb.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
         self.send(m)
 
       user.update_last_fetch()
@@ -85,12 +91,13 @@ class FacebookNegativeOne:
   def handle_incoming(self, message):
     self.log.info("Incoming: %s" % message)
     self.msg = message
-    # if not message.is_valid():
-    #     self.log.debug("Ignoring invalid message")
-    #     return
     if not User.is_registered(self, message.sender):
         self.register_user()
         return
+    if not message.is_valid():
+        self.log.debug("Ignoring invalid message")
+        return
+
     self.user = User(self, message.sender)
     try:
         self.user.start_session()
@@ -111,20 +118,6 @@ class FacebookNegativeOne:
 
   def parse_command(self, message, command, arguments):
     raise NotImplementedError
-
-  def id_to_number(self, facebook_id):
-    return self.conf.number_prefix + '' + facebook_id
-
-  def number_to_id(self, number):
-    if numnber == self.msg.sender:
-      return self.user.profile.facebook_id
-    else:
-      return number[self.conf.number_prefix:]
-
-  def post(self, message):
-    post = Post(self.user.fb.profile, FacebookUser(self.number_to_id(message.recipient)), message.body)
-    self.user.fb.push_post(post)
-    #TODO how do we handle delivery failures?
 
   def register_user(self):
     # Put user in table if doesnt exist
@@ -182,11 +175,28 @@ class FacebookNegativeOne:
       return user.set_auth(email=user.email, password=password)
     return True
 
+
   def reply(self, body):
      """ Convenience function to respond to the sender of the app's message.
      """
      m = Message(self.conf.app_number, self.msg.sender, None, body)
      self.send(m)
+
+  def post(self, msg):
+    sender = self.user.fb.facebook_id
+    recipient = self.number_to_id(msg.recipient)
+    body = msg.body
+
+    post = Post(sender, recipient, body)
+
+    # Messages to self are posted as status updates
+    if post.recipient == self.user.fb.facebook_id:
+      self.log.debug("Pushing status update: %s" % post)
+      self.user.fb.push_status(post)
+    # Messages to others are private messages
+    else:
+      self.log.debug("Pushing private message: %s" % post)
+      self.user.fb.push_message(post)
 
   def send(self, msg):
     self.log.debug("Sending: %s" % msg)

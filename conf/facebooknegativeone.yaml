@@ -10,3 +10,6 @@ number_prefix:   999
 
 # Sender settings
 sender_type:     'test'
+
+# Facebook session provider
+provider_type:     'test'

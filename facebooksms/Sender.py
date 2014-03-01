@@ -1,7 +1,7 @@
 import logging
 
 class Sender:
-    def send_sms(self, sender, receipient, subject, data):
+    def send_sms(self, sender, recipient, subject, data):
         raise NotImplementedError
 
 class TestSender(Sender):

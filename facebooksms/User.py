@@ -3,7 +3,7 @@ from facebooksms import AuthError
 class User:
   def __init__(self, app, number):
     self.app = app
-    self.fb = app.session_provider.new_session()
+    self.fb = app.session_provider()
 
     self.number = None
     self.email = None

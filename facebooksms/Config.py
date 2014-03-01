@@ -39,4 +39,8 @@ class Config:
   def sender_type(self):
     return self.config_dict['sender_type']
 
+  @property
+  def provider_type(self):
+    return self.config_dict['provider_type']
+
 
