@@ -43,4 +43,7 @@ class Config:
   def provider_type(self):
     return self.config_dict['provider_type']
 
+  @property
+  def fetch_number(self):
+    return self.config_dict['fetch_number']
 

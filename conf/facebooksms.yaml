@@ -1,15 +1,18 @@
 #DB settings
-db_file:         'conf/facebooknegativeone.sqlite3'
+db_file:         '/etc/OpenBTS/facebooknegativeone.sqlite3'
 
 #DB Schema
 t_users:         'users'
 
 #App settings
-app_number:      1000
+app_number:      9999
 number_prefix:   999
 
 # Sender settings
 sender_type:     'test'
 
 # Facebook session provider
-provider_type:     'test'
+provider_type:   'test'
+
+#Fech mode
+fetch_number:    10

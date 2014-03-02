@@ -2,7 +2,7 @@ import time
 import re
 from facebooksms import * 
 
-class FacebookNegativeOne:
+class FacebookSMS:
   def __init__(self, conf):
     self.msg = None
     self.user = None
@@ -77,13 +77,17 @@ class FacebookNegativeOne:
       private_messages = user.fb.get_messages(last_fetch)
       self.log.debug("Forwarding %d private messages for user %s" % (len(private_messages), user.number))
       for pm in private_messages:
-        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s" % pm.timestamp, pm.body)
+        #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(pm.timestamp)))
+        timestamp = "Dec 01, 12:00am"
+        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s at %s" % (post.sender.name, timestamp), pm.body)
         self.send(m)
 
       home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
       self.log.debug("Forwarding %d home feed posts for user %s" % (len(home_feed_posts), user.number))
       for post in home_feed_posts:
-        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s" % (post.sender.name, post.timestamp), post.body)
+        #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(post.timestamp)))
+        timestamp = "Dec 01, 12:00am"
+        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s" % (post.sender.name, timestamp), post.body)
         self.send(m)
 
       user.update_last_fetch()
@@ -167,7 +171,7 @@ class FacebookNegativeOne:
     # state machine to collect user email
     if not u.email:
       if self.collect_email(u):
-        self.reply("Please enter your password")
+        self.reply("Please enter your password.")
       return
 
     # state machine to collect user password
@@ -176,16 +180,16 @@ class FacebookNegativeOne:
 
     # TODO how do we want to handle Internet connectivity issues for registration auth?
     if not u.is_active:
-      self.reply("Registration failed. Please enter your email address")
+      self.reply("Registration failed. Please enter your email address.")
       u.set_auth() # reset registration to retry process
       return
 
     self.reply("Your account is now setup! " + \
-        "News feed updates will arrive from the number %s." % self.id_to_number(u.fb.profile.facebook_id) + \
-        "Sending an SMS to that number will post a status update" + \
-        "You can send messages to friends by sending an SMS to %s<friend FB id>." % self.conf.app_number + \
-        "Find your friend's number by invoking the \"friend\" command." + \
-        'Send "help" to %s to learn how to use the service.' % self.conf.app_number)
+        "News feed updates will arrive from the number %s. " % self.id_to_number(u.fb.profile.facebook_id) + \
+        "Sending an SMS to that number will post a status update")
+    self.reply("You can send messages to friends by sending an SMS to %s<friend FB id>. " % self.conf.number_prefix + \
+        "Find your friend's number by invoking the \"friend\" command.")
+    self.reply('Send "help" to %s to learn how to use the service.' % self.conf.app_number)
 
   def collect_email(self, user):
     self.log.debug("Collecting email for user %s" % user.number)
@@ -193,7 +197,7 @@ class FacebookNegativeOne:
       email = self.msg.body.strip().lower()
       # does this pattern encompass all emails?
       if not re.match('^[_.0-9a-z-+]+@([0-9a-z][0-9a-z-]+.)+[a-z]{2,6}$', email):
-          self.reply("Please enter a valid email address")
+          self.reply("Please enter a valid email address.")
           return False
       return user.set_auth(email=email)
     return True
@@ -202,8 +206,8 @@ class FacebookNegativeOne:
     self.log.debug("Collecting password for user %s" % user.number)
     if user.password is None:
       password = self.msg.body # TODO Should we strip passwords?
-      if not len(password) > 0:
-        self.reply("Please enter a valid password")
+      if not len(password) > 3:
+        self.reply("Please enter a valid password.")
         return False
       return user.set_auth(email=user.email, password=password)
     return True
@@ -214,7 +218,7 @@ class FacebookNegativeOne:
       result_msg = "There were no matches for your friend search for \"%s\"" % query
     else:
       result_msg = "%d Friend(s) matched your search for \"%s\":" % (len(matches), query)
-      for friend in matches:
+      for friend in matches[:5]:
         result_msg += "\n %s - %s" % (friend.name, self.id_to_number(friend.facebook_id))
     self.reply(result_msg)
 

@@ -26,6 +26,7 @@ class CommandHandler(object):
         self.app = app
         self.conf = app.conf
         self.commands = {"friend": self.find_friend,
+                         "help":   self.cmd_help
                         }
 
     app_commands = ["friend"]
@@ -40,7 +41,7 @@ class CommandHandler(object):
 
         # Don't dispatch non-commands
         if not cmd in self.commands:
-            e = "The command '%s' doesn't exist. Try sending 'help' to %s, or call 411 for Information." \
+            e = "The command '%s' doesn't exist. Try sending 'help' to %s." \
                 % (cmd, self.conf.app_number)
             raise CommandError(e)
 

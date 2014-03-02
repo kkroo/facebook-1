@@ -17,19 +17,15 @@ parser.add_argument('--message', '-m', action='store', dest='message', \
     help="Body of incoming message.")
 
 parser.add_argument('--config', '-c', action='store', dest='config', \
-    help="Configuration file (default: conf/facebooknegativeone.yaml)", \
-    default="conf/facebooknegativeone.yaml")
+    help="Configuration file (default: ./conf/facebooksms.yaml)", \
+    default="./conf/facebooksms.yaml")
 
 parser.add_argument('--fetch', action='store_true', dest='fetch_mode', \
     help="Go into fetch mode.")
 
-parser.add_argument('--number', '-n', action='store', dest='fetch_number', \
-    help="Number of users to fetch updates for (fetch mode only).", \
-    type=int, default=10)
-
 parser.add_argument('--log', '-l', action='store', dest='logfile', \
-    help="log file (default: log/facebooknegativeone.log)", \
-    default="log/facebooknegativeone.log")
+    help="log file (default: ./log/facebooksms.log)", \
+    default="./log/facebooksms.log")
 
 parser.add_argument('--debug', action='store_true', dest='debug_mode', \
     help="enable debug logging.")
@@ -40,19 +36,19 @@ conf_file = open(args.config, "r")
 config_dict = yaml.load("".join(conf_file.readlines()))
 
 
-log = logging.getLogger('facebooknegativeone')
+log = logging.getLogger('facebooksms')
 if args.debug_mode:
   logging.basicConfig(filename=args.logfile, level=logging.DEBUG)
 else:
   logging.basicConfig(filename=args.logfile)
 
 conf = facebooksms.Config(config_dict, log)
-app = facebooksms.FacebookNegativeOne(conf)
+app = facebooksms.FacebookSMS(conf)
 
 if args.fetch_mode:
   if args.sender or args.recipient or args.message:
     log.error("Sender, recipient, and message args shouldn't be set for fetch mode")
-  app.fetch_updates(args.fetch_number)
+  app.fetch_updates(conf.fetch_number)
 else:
   if not args.sender and not args.recipient and not args.message:
     log.error("Sender, recipient, and message args must be set for send mode")

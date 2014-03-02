@@ -39,7 +39,7 @@ class FacebookTestSession(FacebookSessionProvider):
     if password != "password":
       raise AuthError()
 
-    psuedo_id = abs(hash(email)) % 10000000000
+    psuedo_id = abs(hash(email)) % 10000
     psuedo_name = email.split('@')[0]
     self.profile = FacebookUser(psuedo_id, psuedo_name)
     self.friends = [FacebookUser(123, "Omar Ramadan"), FacebookUser(124, "John Doe") ]
@@ -55,7 +55,8 @@ class FacebookTestSession(FacebookSessionProvider):
     return results
 
   def get_home_feed_posts(self, earliest_timestamp):
-    return [Post(self.friends[1], self.friends[1].facebook_id, "It's a beautiful day.", 1234, time())]
+    return [Post(self.friends[1], self.friends[1].facebook_id, "It's a beautiful day.", 1234, time() - 1000),
+            Post(self.friends[0], self.friends[0].facebook_id, "Here is a status update.", 567, time()) ]
 
   def get_messages(self, earliest_timestamp):
     return [Post(self.friends[1], self.profile.facebook_id, "Congrats you got a PM!", 3456, time())]
