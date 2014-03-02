@@ -75,15 +75,15 @@ class FacebookNegativeOne:
         self.app.log.error("Something bad happened while starting session for user %s: %s" % self.number, e)
 
       private_messages = user.fb.get_messages(last_fetch)
-      self.log.debug("Forwarding %d private messages for user %s" % len(private_messages), user.number)
+      self.log.debug("Forwarding %d private messages for user %s" % (len(private_messages), user.number))
       for pm in private_messages:
         m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s" % pm.timestamp, pm.body)
         self.send(m)
 
       home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
-      self.log.debug("Forwarding %d home feed posts for user %s" % len(home_feed_posts), user.number)
+      self.log.debug("Forwarding %d home feed posts for user %s" % (len(home_feed_posts), user.number))
       for post in home_feed_posts:
-        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
+        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s" % (post.sender.name, post.timestamp), post.body)
         self.send(m)
 
       user.update_last_fetch()

@@ -42,11 +42,11 @@ class User:
 
     return True
 
-  def update_last_fetch():
+  def update_last_fetch(self):
     self.app.log.debug("Setting last fetch for user: %s" % self.number)
     if self.number is None:
       return
-    self.app.db.execute("UPDATE OR IGNORE %s SET last_fetch =? WHERE number=?" % self.app.conf.t_name, ("%d" % time(), email, password, number))
+    self.app.db.execute("UPDATE OR IGNORE %s SET last_fetch =? WHERE number=?" % self.app.conf.t_users, ("%d" % time(), self.number))
     self.app.db.commit()
 
 
