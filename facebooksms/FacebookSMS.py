@@ -11,7 +11,7 @@ class FacebookNegativeOne:
     self.session_provider = self._init_session_provider(self.conf.provider_type)
     self.cmd_handler = CommandHandler(self)
     self.msg_sender = self._init_sender(self.conf.sender_type)
-    self._init_db(True)
+    self._init_db()
     self.log = self.conf.log
     self.log.debug("Init done.")
 
@@ -83,7 +83,7 @@ class FacebookNegativeOne:
       home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
       self.log.debug("Forwarding %d home feed posts for user %s" % len(home_feed_posts), user.number)
       for post in home_feed_posts:
-        m = Message(self.id_to_number(user.fb.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
+        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s: " % (post.sender.name, post.timestamp), pm.body)
         self.send(m)
 
       user.update_last_fetch()
@@ -112,12 +112,41 @@ class FacebookNegativeOne:
         return
 
     if self.cmd_handler.looks_like_command(message):
-      self.parse_command(message, command, arguments)
+      self.parse_command(message)
     else:
       self.post(message)
 
-  def parse_command(self, message, command, arguments):
-    raise NotImplementedError
+  def parse_command(self, message):
+      """ Recognize command, parse arguments, and call appropriate handler.
+      """
+      if len(message.body.split()) > 1:
+          cmd, args = message.body.split(None, 1)
+          args = args.split()
+      elif len(message.body.split()) == 1:
+          cmd = message.body.split()[0]
+          args = None
+      else:
+          cmd = None
+          args = None
+
+      try:
+          self.cmd_handler.dispatch(message, cmd, args)
+      except CommandError as e:
+          self.reply(str(e).replace("\"", "")) # Send the failure message to the user.
+
+  def id_to_number(self, facebook_id):
+    return '%s%s' % (self.conf.number_prefix, facebook_id)
+
+  def number_to_id(self, number):
+    prefix_len = len(str(self.conf.number_prefix))
+    if not number.startswith(str(self.conf.number_prefix)):
+      raise ValueError("Invalid number %s. Missing prefix code %s" % (number, self.conf.number_prefix))
+    return number[prefix_len:]
+
+  def post(self, message):
+    post = Post(self.user.fb.profile, FacebookUser(self.number_to_id(message.recipient)), message.body)
+    self.user.fb.post_status(post)
+    #TODO how do we handle delivery failures?
 
   def register_user(self):
     # Put user in table if doesnt exist
@@ -175,6 +204,15 @@ class FacebookNegativeOne:
       return user.set_auth(email=user.email, password=password)
     return True
 
+  def find_friend(self, query):
+    matches = self.user.fb.find_friend(query)
+    if len(matches) == 0:
+      result_msg = "There were no matches for your friend search for \"%s\"" % query
+    else:
+      result_msg = "%d Friend(s) matched your search for \"%s\":" % (len(matches), query)
+      for friend in matches:
+        result_msg += "\n %s - %s" % (friend.name, self.id_to_number(friend.facebook_id))
+    self.reply(result_msg)
 
   def reply(self, body):
      """ Convenience function to respond to the sender of the app's message.
@@ -183,20 +221,19 @@ class FacebookNegativeOne:
      self.send(m)
 
   def post(self, msg):
-    sender = self.user.fb.facebook_id
+    sender = self.user.fb.profile.facebook_id
     recipient = self.number_to_id(msg.recipient)
     body = msg.body
 
     post = Post(sender, recipient, body)
-
     # Messages to self are posted as status updates
-    if post.recipient == self.user.fb.facebook_id:
-      self.log.debug("Pushing status update: %s" % post)
-      self.user.fb.push_status(post)
+    if post.recipient == self.user.fb.profile.facebook_id:
+      self.log.debug("Posting status update: %s" % post)
+      self.user.fb.post_status(post)
     # Messages to others are private messages
     else:
-      self.log.debug("Pushing private message: %s" % post)
-      self.user.fb.push_message(post)
+      self.log.debug("Posting private message: %s" % post)
+      self.user.fb.post_message(post)
 
   def send(self, msg):
     self.log.debug("Sending: %s" % msg)

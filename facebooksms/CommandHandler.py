@@ -25,12 +25,12 @@ class CommandHandler(object):
     def __init__(self, app):
         self.app = app
         self.conf = app.conf
-        self.commands = {"password": self.update_password,
+        self.commands = {"friend": self.find_friend,
                         }
 
-    app_commands = ["password"]
+    app_commands = ["friend"]
 
-    def dispatch(self, message, cmd, arguments, confirmed):
+    def dispatch(self, message, cmd, arguments):
         """ Dispatch a command to the appropriate handler. We check to make
         sure the command exists and is directed to a valid number before
         dispatching.
@@ -60,17 +60,11 @@ class CommandHandler(object):
             arguments = []
 
         handler_func = self.commands[cmd]
-        handler_func(message, cmd, arguments, confirmed)
+        handler_func(message, cmd, arguments)
 
     def looks_like_command(self, message):
         body = message.body
-        has_cmd_char = body.startswith(self.conf.cmd_char)
-        if has_cmd_char:
-            cmd = body[1:].split()[0].lower()
-        elif len(body.split()) >= 1:
-            cmd = body.split()[0].lower()
-        else:
-            return False
+        cmd = body.split()[0].lower()
 
         # dispatch() will verify the command actually exists and is sent to the
         # proper number. The goal here is to accept anything that looks like it
@@ -78,7 +72,7 @@ class CommandHandler(object):
         # appropriate error to the user if the command turns out to be
         # malformed.
         is_to_app = str(message.recipient) == str(self.conf.app_number)
-        return is_to_app or has_cmd_char or cmd in self.commands.keys()
+        return is_to_app or cmd in self.commands.keys()
 
     def invalid_command(self, command):
         if not command:
@@ -89,18 +83,19 @@ class CommandHandler(object):
                 (command, self.conf.app_number)
         raise CommandError(e)
 
-    def update_password(self, message, cmd, args):
+    def find_friend(self, message, cmd, args):
         """
         This command is sent to the application.
-        If list creation is enabled, anyone can create lists.
+        Uses this command to retrieve the "numbers" of 
+        friends matching a search query
         """
-        if not len(args) == 1:
-            self.invalid_command("create")
+        if not len(args) > 0:
+            self.invalid_command("friend")
 
-        l = List(args[0], self.app)
-        l.create(message.sender)
+        q = ' '.join(args)
+        self.app.find_friend(q)
 
-    def cmd_help(self, message, cmd, args, confirmed):
+    def cmd_help(self, message, cmd, args):
         """
         This command is sent directly to a list or to the application.
         Anyone can ask for help. Should return a list of commands, and if
@@ -108,7 +103,7 @@ class CommandHandler(object):
         """
         help_strings = {
                         "help": "For more info send 'help <command>' to %s. Available commands: %s. More questions? Call 411." % (self.conf.app_number, ", ".join(self.commands.keys())),
-                        "password" : "Send 'password <your password>' to %s to update your saved password." % self.conf.app_number
+                        "find" : "Send 'password <your password>' to %s to update your saved password." % self.conf.app_number
     }
         if cmd == "help":
             if not args or len(args) == 0:

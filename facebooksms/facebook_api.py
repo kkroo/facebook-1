@@ -48,17 +48,17 @@ class FacebookTestSession(FacebookSessionProvider):
     return self.friends
 
   def find_friend(self, name_query):
-    query = name.lower().strip()
+    query = name_query.lower().strip()
     results = filter(lambda user: query in user.name.lower(), self.get_friend_list())
-    self.logger.info("Friends matching query %s: %d/$d" % \
+    self.logger.info("Friends matching query %s: %d/%d" % \
         (query, len(results), len(self.get_friend_list())))
     return results
 
   def get_home_feed_posts(self, earliest_timestamp):
-    return [Post(self.friends[1], self.friends[1], "It's a beautiful day.", 1234, time())]
+    return [Post(self.friends[1], self.friends[1].facebook_id, "It's a beautiful day.", 1234, time())]
 
   def get_messages(self, earliest_timestamp):
-    return [Post(self.friends[1], self.friends[0], "Congrats you got a PM!", 3456, time())]
+    return [Post(self.friends[1], self.friends[0].facebook_id, "Congrats you got a PM!", 3456, time())]
 
   def post_status(self, post):
     self.logger.info("Posting status %s" % post)
@@ -72,17 +72,21 @@ class FacebookTestSession(FacebookSessionProvider):
 
 class FacebookUser:
   def __init__(self, facebook_id, name):
-    self.facebook_id = facebook_id
+    self.id = facebook_id
     self.name = name
+
+  @property
+  def facebook_id(self):
+    return str(self.id)
 
   def __str__(self):
     return '%s (#%d)' % (self.name, self.facebook_id)
 
 class Post:
-  def __init__(self, sender, recipient, body, post_id=None, timestamp=None):
+  def __init__(self, sender, recipient_id, body, post_id=None, timestamp=None):
     self.post_id = post_id
     self.sender = sender
-    self.recipient = recipient
+    self.recipient = recipient_id
     self.timestamp = timestamp if timestamp else time()
     self.body = body
 
