@@ -181,6 +181,10 @@ class FacebookNegativeOne:
       return
 
     self.reply("Your account is now setup! " + \
+        "News feed updates will arrive from the number %s." % self.id_to_number(u.fb.profile.facebook_id) + \
+        "Sending an SMS to that number will post a status update" + \
+        "You can send messages to friends by sending an SMS to %s<friend FB id>." % self.conf.app_number + \
+        "Find your friend's number by invoking the \"friend\" command." + \
         'Send "help" to %s to learn how to use the service.' % self.conf.app_number)
 
   def collect_email(self, user):

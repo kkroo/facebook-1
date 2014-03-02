@@ -102,8 +102,8 @@ class CommandHandler(object):
         there's an argument, should show help for specified command.
         """
         help_strings = {
-                        "help": "For more info send 'help <command>' to %s. Available commands: %s. More questions? Call 411." % (self.conf.app_number, ", ".join(self.commands.keys())),
-                        "find" : "Send 'password <your password>' to %s to update your saved password." % self.conf.app_number
+                        "help": "For more info send 'help <command>' to %s. Available commands: %s." % (self.conf.app_number, ", ".join(self.commands.keys())),
+                        "friend" : "Send 'friend <name>' to %s to find the number to SMS to send a Facebook message to a friend." % self.conf.app_number
     }
         if cmd == "help":
             if not args or len(args) == 0:
