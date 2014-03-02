@@ -221,6 +221,9 @@ class FacebookSMS:
       for friend in matches[:5]:
         result_msg += "\n %s - %s" % (friend.name, self.id_to_number(friend.facebook_id))
     self.reply(result_msg)
+  
+  def wall_info(self):
+    self.reply("The number of your wall is %s." % self.id_to_number(self.user.fb.profile.facebook_id))
 
   def reply(self, body):
      """ Convenience function to respond to the sender of the app's message.

@@ -26,10 +26,11 @@ class CommandHandler(object):
         self.app = app
         self.conf = app.conf
         self.commands = {"friend": self.find_friend,
-                         "help":   self.cmd_help
+                         "help":   self.cmd_help,
+                         "wall":   self.wall_info
                         }
 
-    app_commands = ["friend"]
+    app_commands = ["friend", "wall"]
 
     def dispatch(self, message, cmd, arguments):
         """ Dispatch a command to the appropriate handler. We check to make
@@ -96,6 +97,9 @@ class CommandHandler(object):
         q = ' '.join(args)
         self.app.find_friend(q)
 
+    def wall_info(self, message, cmd, args):
+        self.app.wall_info()
+
     def cmd_help(self, message, cmd, args):
         """
         This command is sent directly to a list or to the application.
@@ -104,7 +108,8 @@ class CommandHandler(object):
         """
         help_strings = {
                         "help": "For more info send 'help <command>' to %s. Available commands: %s." % (self.conf.app_number, ", ".join(self.commands.keys())),
-                        "friend" : "Send 'friend <name>' to %s to find the number to SMS to send a Facebook message to a friend." % self.conf.app_number
+                        "friend" : "Send 'friend <name>' to %s to find the number to SMS to send a Facebook message to a friend." % self.conf.app_number,
+                        "wall":  "Send 'wall' to view the SMS number of your news feed. You can post status updates to it, and view friend's statuses as well."
     }
         if cmd == "help":
             if not args or len(args) == 0:
