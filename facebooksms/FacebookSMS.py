@@ -79,7 +79,7 @@ class FacebookSMS:
       for pm in private_messages:
         #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(pm.timestamp)))
         timestamp = "Dec 01, 12:00am"
-        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s at %s" % (post.sender.name, timestamp), pm.body)
+        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s at %s" % (pm.sender.name, timestamp), pm.body)
         self.send(m)
 
       home_feed_posts = user.fb.get_home_feed_posts(last_fetch)

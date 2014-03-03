@@ -1,5 +1,5 @@
 #DB settings
-db_file:         '/etc/OpenBTS/facebooknegativeone.sqlite3'
+db_file:         '/etc/OpenBTS/facebooksms.sqlite3'
 
 #DB Schema
 t_users:         'users'
