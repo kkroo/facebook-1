@@ -1,4 +1,4 @@
-import time
+import time, datetime
 import re
 from facebooksms import * 
 
@@ -18,6 +18,8 @@ class FacebookSMS:
   def _init_session_provider(self, provider_type):
       if provider_type == "test":
           return FacebookTestSession
+      if provider_type == "chat":
+          return FacebookChatSession
       raise ValueError("No FB session provider of type '%s' exists." % provider_type)
 
   def _init_sender(self, sender_type):
@@ -46,22 +48,26 @@ class FacebookSMS:
       # should be fine.
       self.db.execute("CREATE TABLE IF NOT EXISTS %s " % self.conf.t_users + \
           "(number TEXT not NULL UNIQUE ON CONFLICT IGNORE, " + \
-          "email TEXT, password TEXT, last_fetch INTEGER )" )
+          "email TEXT, password TEXT, last_fetch TIMESTAMP )" )
       self.db.commit()
+
+  def _cleanup(self):
+    if not self.user is None:
+      self.user.close_session()
 
   def fetch_updates(self, n):
     """ Sort the users table by time of last fetch ASC
         and select the top n users. Fetch updates, and
         push to user
     """
-    self.log.debug("Fetching updates for %u users" % n)
     r = self.db.execute("SELECT number, last_fetch FROM %s " % (self.conf.t_users,) + \
           "WHERE email is not NULL and password is not NULL " + \
           "ORDER BY last_fetch ASC LIMIT 0, %u" % (int(n),))
     result = r.fetchall()
+    self.log.debug("Fetching updates for %u users" % len(result))
     for user_row in result:
       user = User(self, user_row[0])
-      last_fetch = user_row[1]
+      last_fetch = datetime.datetime.strptime(user_row[1].split('.')[0], "%Y-%m-%d %H:%M:%S")
       try:
         user.start_session()
       except AuthError:
@@ -72,11 +78,12 @@ class FacebookSMS:
         user.set_auth()
         self.send(m)
       except Exception as e:
-        self.app.log.error("Something bad happened while starting session for user %s: %s" % self.number, e)
+        self.log.error("Something bad happened while starting session for user %s: %s" % (user.number, e))
 
       private_messages = user.fb.get_messages(last_fetch)
       self.log.debug("Forwarding %d private messages for user %s" % (len(private_messages), user.number))
       for pm in private_messages:
+        # Freeswitch freaks when I use strftime! TODO
         #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(pm.timestamp)))
         timestamp = "Dec 01, 12:00am"
         m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s at %s" % (pm.sender.name, timestamp), pm.body)
@@ -85,21 +92,24 @@ class FacebookSMS:
       home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
       self.log.debug("Forwarding %d home feed posts for user %s" % (len(home_feed_posts), user.number))
       for post in home_feed_posts:
+        # Freeswitch freaks when I use strftime! TODO
         #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(post.timestamp)))
         timestamp = "Dec 01, 12:00am"
         m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s" % (post.sender.name, timestamp), post.body)
         self.send(m)
 
+      user.close_session()
       user.update_last_fetch()
 
   def handle_incoming(self, message):
     self.log.info("Incoming: %s" % message)
     self.msg = message
-    if not User.is_registered(self, message.sender):
-        self.register_user()
-        return
     if not message.is_valid():
         self.log.debug("Ignoring invalid message")
+        return
+
+    if not User.is_registered(self, message.sender):
+        self.register_user()
         return
 
     self.user = User(self, message.sender)
@@ -112,7 +122,7 @@ class FacebookSMS:
         self.user.set_auth() #reset credentials
         return
     except Exception as e:
-        self.log.error("Failed to login user %s: %s" % message.sender,e)
+        self.log.error("Failed to login user %s: %s" % (message.sender,e))
         return
 
     if self.cmd_handler.looks_like_command(message):
@@ -164,52 +174,62 @@ class FacebookSMS:
       return
 
     # sanity check user is registered
-    u = User(self, self.msg.sender)
-    if not u.number == self.msg.sender:
+    self.user = User(self, self.msg.sender)
+    if not self.user.number == self.msg.sender:
       return
 
     # state machine to collect user email
-    if not u.email:
-      if self.collect_email(u):
+    if not self.user.email:
+      if self.collect_email():
         self.reply("Please enter your password.")
       return
 
     # state machine to collect user password
-    if not u.password and not self.collect_password(u):
+    if not self.user.password and not self.collect_password():
       return
 
     # TODO how do we want to handle Internet connectivity issues for registration auth?
-    if not u.is_active:
-      self.reply("Registration failed. Please enter your email address.")
-      u.set_auth() # reset registration to retry process
-      return
+    if self.user.is_active:
+      try:
+        self.user.start_session()
+        self.send_registered()
+        return
+      except AuthError:
+        self.log.debug("Auth failed for user %s with email %s" % (self.user.number, self.user.email))
+      except Exception as e:
+        self.log.error("Something bad happened while starting session for user %s: %s" % (self.user.number, e))
 
+      self.reply("Registration failed. Please enter your email address.")
+      self.user.set_auth() # reset registration to retry process
+
+
+  def send_registered(self):
     self.reply("Your account is now setup! " + \
-        "News feed updates will arrive from the number %s. " % self.id_to_number(u.fb.profile.facebook_id) + \
+        "News feed updates will arrive from the number %s. " % self.id_to_number(self.user.fb.profile.facebook_id) + \
         "Sending an SMS to that number will post a status update")
     self.reply("You can send messages to friends by sending an SMS to %s<friend FB id>. " % self.conf.number_prefix + \
         "Find your friend's number by invoking the \"friend\" command.")
     self.reply('Send "help" to %s to learn how to use the service.' % self.conf.app_number)
 
-  def collect_email(self, user):
-    self.log.debug("Collecting email for user %s" % user.number)
-    if user.email is None:
+  def collect_email(self):
+    self.log.debug("Collecting email for user %s" % self.user.number)
+    if self.user.email is None:
       email = self.msg.body.strip().lower()
       # does this pattern encompass all emails?
       if not re.match('^[_.0-9a-z-+]+@([0-9a-z][0-9a-z-]+.)+[a-z]{2,6}$', email):
           self.reply("Please enter a valid email address.")
           return False
-      return user.set_auth(email=email)
+      return self.user.set_auth(email=email)
     return True
 
-  def collect_password(self, user):
-    self.log.debug("Collecting password for user %s" % user.number)
-    if user.password is None:
+  def collect_password(self):
+    self.log.debug("Collecting password for user %s" % self.user.number)
+    if self.user.password is None:
       password = self.msg.body # TODO Should we strip passwords?
       if not len(password) > 3:
         self.reply("Please enter a valid password.")
         return False
-      return user.set_auth(email=user.email, password=password)
+      return self.user.set_auth(email=self.user.email, password=password)
     return True
 
   def find_friend(self, query):

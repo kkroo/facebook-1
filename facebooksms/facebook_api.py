@@ -10,6 +10,8 @@ class FacebookSessionProvider:
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
     raise NotImplementedError
+  def logout(self):
+    raise NotImplementedError
   def get_friend_list(self):
     raise NotImplementedError
   def find_friend(self, name_query):

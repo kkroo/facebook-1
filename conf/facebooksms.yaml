@@ -1,5 +1,5 @@
 #DB settings
-db_file:         '/etc/OpenBTS/facebooksms.sqlite3'
+db_file:         './facebooksms.sqlite3'
 
 #DB Schema
 t_users:         'users'
@@ -12,7 +12,7 @@ number_prefix:   999
 sender_type:     'test'
 
 # Facebook session provider
-provider_type:   'test'
+provider_type:   'chat'
 
 #Fech mode
 fetch_number:    10

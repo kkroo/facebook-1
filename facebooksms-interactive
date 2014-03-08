@@ -2,7 +2,8 @@
 import argparse
 import yaml
 import logging
-
+import threading
+import traceback, sys
 import facebooksms
 
 parser = argparse.ArgumentParser(description="Facebook Negative One, a SMS interface.")
@@ -45,12 +46,38 @@ else:
 conf = facebooksms.Config(config_dict, log)
 app = facebooksms.FacebookSMS(conf)
 
+# So if we are using the chat session provider
+# and we crash prematurely, threads keep the script
+# from terminating so kill em on an exception
+def kill_threads():
+  for thread in threading.enumerate():
+    try:
+      thread.exit()
+    except Exception:
+      pass
+
 if args.fetch_mode:
   if args.sender or args.recipient or args.message:
     log.error("Sender, recipient, and message args shouldn't be set for fetch mode")
-  app.fetch_updates(conf.fetch_number)
+  try:
+    app.fetch_updates(conf.fetch_number)
+  except Exception:
+    e = sys.exc_info()
+    traceback.print_exception(*e)
+    kill_threads()
+  finally:
+   app._cleanup()
 else:
   if not args.sender and not args.recipient and not args.message:
     log.error("Sender, recipient, and message args must be set for send mode")
   msg = facebooksms.Message(args.sender, args.recipient, None, args.message)
-  app.handle_incoming(msg)
+  try:
+    app.handle_incoming(msg)
+  except Exception:
+    e = sys.exc_info()
+    traceback.print_exception(*e)
+    kill_threads()
+  finally:
+   app._cleanup()
+
+

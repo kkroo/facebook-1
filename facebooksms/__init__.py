@@ -4,4 +4,5 @@ from User import *
 from Message import *
 from Sender import *
 from CommandHandler import *
+from FacebookChat import *
 from FacebookSMS import *
