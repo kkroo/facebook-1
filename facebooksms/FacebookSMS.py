@@ -117,11 +117,12 @@ class FacebookSMS:
         self.user.start_session()
     except AuthError:
         self.log.debug("Failed to auth login for user %s" % message.sender)
-        self.reply("Facebook SMS failed to authenticate. Please re-send your credentials to %s " % \
+        self.reply("Facebook SMS failed to authenticate. Please re-send your credentials to %s." % \
                     self.conf.app_number)
         self.user.set_auth() #reset credentials
         return
     except Exception as e:
+        self.reply("Facebook SMS service is currently unavailable. Please try again later.")
         self.log.error("Failed to login user %s: %s" % (message.sender,e))
         return
 
@@ -196,11 +197,13 @@ class FacebookSMS:
         return
       except AuthError:
         self.log.debug("Auth failed for user %s with email %s" % (self.user.number, self.user.email))
+        self.reply("Authentication failed. Please enter your email address.")
+        self.user.set_auth() # reset registration to retry process
       except Exception as e:
         self.log.error("Something bad happened while starting session for user %s: %s" % (self.user.number, e))
+        self.reply("Registration failed. Please try again later.")
+        self.user.delete()
 
-      self.reply("Registration failed. Please enter your email address.")
-      self.user.set_auth() # reset registration to retry process
 
 
   def send_registered(self):

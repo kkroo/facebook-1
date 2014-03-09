@@ -56,7 +56,11 @@ class User:
 
 
   def delete(self):
-    raise NotImplementedError
+    self.app.log.debug("Deleting user: %s" % self.number)
+    if self.number is None:
+      return
+    self.app.db.execute("DELETE FROM %s WHERE number=?" % self.app.conf.t_users, (self.number, ))
+    self.app.db.commit()
 
   @property
   def is_active(self):

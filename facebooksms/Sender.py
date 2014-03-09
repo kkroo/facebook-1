@@ -15,6 +15,7 @@ class TestSender(Sender):
     def send_sms(self, sender, recipient, subject, data):
         msg = [ self.msg_count, sender, recipient, subject, data ]
         self.logger.info("%s" % msg)
+        print "%s" % msg
         self.msg_count += 1
 
 

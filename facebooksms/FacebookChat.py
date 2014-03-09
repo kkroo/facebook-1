@@ -10,7 +10,7 @@ class FacebookChatSession(FacebookSessionProvider):
     self.jid = None
     xmpp_log = logging.getLogger("sleekxmpp")
     self.log = logging.getLogger("facebooksms")
-    xmpp_log.setLevel("ERROR")
+    xmpp_log.setLevel("INFO")
     self.xmpp = None
     self.auth_ok = None
 
@@ -30,7 +30,7 @@ class FacebookChatSession(FacebookSessionProvider):
     self.jid = "%s@chat.facebook.com" % email
 
     self.xmpp = ChatClient(self.jid, password)
-    if not self.xmpp.connect(('chat.facebook.com', 5222)):
+    if not self.xmpp.connect(('chat.facebook.com', 5222), reattempt=False):
       raise Exception("Failed to connect to server")
 
     try:
@@ -63,6 +63,7 @@ class ChatClient(sleekxmpp.ClientXMPP):
 
     def __init__(self, jid, password):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
+        self.use_ipv6 = False
         self.auth_queue = Queue()
         self.add_event_handler("session_start", self.start)
         self.add_event_handler('no_auth', self.failed)
