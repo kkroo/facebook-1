@@ -47,3 +47,11 @@ class Config:
   def fetch_number(self):
     return self.config_dict['fetch_number']
 
+  @property
+  def api_key(self):
+    return self.config_dict['api_key']
+
+  @property
+  def api_url(self):
+    return self.config_dict['api_url']
+

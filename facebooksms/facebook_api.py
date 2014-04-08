@@ -4,8 +4,16 @@ from time import time
 class AuthError(Exception):
   pass
 
+class AccountExistsError(Exception):
+  pass
+
+class ConnectionError(Exception):
+  pass
+
 class FacebookSessionProvider:
   """ This class is in interface to the Facebook Graph for a particular user"""
+  def register(self, email, password):
+    raise NotImplementedError
   def login(self, email, password):
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
@@ -31,7 +39,7 @@ class FacebookSessionProvider:
 
 class FacebookTestSession(FacebookSessionProvider):
   """ This is a slug test class for the Facebook Session Provider"""
-  def __init__(self):
+  def __init__(self, app):
     self.profile = None
     self.logger = logging.getLogger("testsession")
 

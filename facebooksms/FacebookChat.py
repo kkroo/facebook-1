@@ -5,7 +5,7 @@ import datetime
 
 
 class FacebookChatSession(FacebookSessionProvider):
-  def __init__(self):
+  def __init__(self, app=None):
     self.profile = None
     self.jid = None
     xmpp_log = logging.getLogger("sleekxmpp")
@@ -17,6 +17,9 @@ class FacebookChatSession(FacebookSessionProvider):
   @property
   def profile(self):
     return self.profile
+
+  def register(self, email, password):
+    pass
 
   def logout(self):
     self.xmpp.disconnect(wait = True)
@@ -35,7 +38,7 @@ class FacebookChatSession(FacebookSessionProvider):
 
     try:
       self.xmpp.process(block=False)
-      self.auth_ok = self.xmpp.auth_queue.get(timeout=5)
+      self.auth_ok = self.xmpp.auth_queue.get(timeout=30)
       self.log.debug("Auth is: %s" % self.auth_ok)
     except Empty:
       raise Exception("Timeout while authorizing")
@@ -64,6 +67,7 @@ class ChatClient(sleekxmpp.ClientXMPP):
     def __init__(self, jid, password):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
         self.use_ipv6 = False
+        self.auto_subscribe = False #will this stop precense spam? or auto_authorize
         self.auth_queue = Queue()
         self.add_event_handler("session_start", self.start)
         self.add_event_handler('no_auth', self.failed)
@@ -71,6 +75,12 @@ class ChatClient(sleekxmpp.ClientXMPP):
         self.registerPlugin('xep_0054')
         #self.add_event_handler('archive_result', self.handle_messages)
         #self.add_event_handler("message", self.message)
+
+    def add_message_handler(self, handler):
+      self.add_event_handler("message", handler)
+
+    def message(self, event):
+      print event
 
     def failed(self, event):
         self.auth_queue.put(False)

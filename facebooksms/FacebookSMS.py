@@ -1,11 +1,12 @@
 import time, datetime
 import re
-from facebooksms import * 
+from facebooksms import *
 
 class FacebookSMS:
-  def __init__(self, conf):
+  def __init__(self, imsi, conf):
     self.msg = None
     self.user = None
+    self.imsi = imsi
     self.conf = conf
     self.db = conf.db_conn
     self.session_provider = self._init_session_provider(self.conf.provider_type)
@@ -20,6 +21,8 @@ class FacebookSMS:
           return FacebookTestSession
       if provider_type == "chat":
           return FacebookChatSession
+      if provider_type == "api":
+          return FacebookAPIClient
       raise ValueError("No FB session provider of type '%s' exists." % provider_type)
 
   def _init_sender(self, sender_type):
@@ -48,60 +51,25 @@ class FacebookSMS:
       # should be fine.
       self.db.execute("CREATE TABLE IF NOT EXISTS %s " % self.conf.t_users + \
           "(number TEXT not NULL UNIQUE ON CONFLICT IGNORE, " + \
-          "email TEXT, password TEXT, last_fetch TIMESTAMP )" )
+          "email TEXT, password TEXT )" )
       self.db.commit()
 
   def _cleanup(self):
     if not self.user is None:
       self.user.close_session()
 
-  def fetch_updates(self, n):
-    """ Sort the users table by time of last fetch ASC
-        and select the top n users. Fetch updates, and
-        push to user
-    """
-    r = self.db.execute("SELECT number, last_fetch FROM %s " % (self.conf.t_users,) + \
-          "WHERE email is not NULL and password is not NULL " + \
-          "ORDER BY last_fetch ASC LIMIT 0, %u" % (int(n),))
-    result = r.fetchall()
-    self.log.debug("Fetching updates for %u users" % len(result))
-    for user_row in result:
-      user = User(self, user_row[0])
-      last_fetch = datetime.datetime.strptime(user_row[1].split('.')[0], "%Y-%m-%d %H:%M:%S")
-      try:
-        user.start_session()
-      except AuthError:
-        self.log.debug("Auth failed for user %s with email %s" % user.number, user.email)
-        m = Message(self.conf.app_number, user.number, None, \
-              "The Facebook SMS service failed to verify your credentials. " + \
-              "Please send your email address to %s to resume service" % self.conf.app_number)
-        user.set_auth()
-        self.send(m)
-      except Exception as e:
-        self.log.error("Something bad happened while starting session for user %s: %s" % (user.number, e))
+  def handle_incoming_msg(self, msg):
+    r = self.db.execute("SELECT number FROM %s " % (self.conf.t_users,) + \
+          "WHERE email = ? AND password IS NOT NULL LIMIT 1", (msg.recipient,))
 
-      private_messages = user.fb.get_messages(last_fetch)
-      self.log.debug("Forwarding %d private messages for user %s" % (len(private_messages), user.number))
-      for pm in private_messages:
-        # Freeswitch freaks when I use strftime! TODO
-        #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(pm.timestamp)))
-        timestamp = "Dec 01, 12:00am"
-        m = Message(self.id_to_number(pm.sender.facebook_id), user.number, "%s at %s" % (pm.sender.name, timestamp), pm.body)
+    res = r.fetchall()
+    if len(res) == 1:
+        m = Message(self.id_to_number(msg.sender), res[0][0], "", msg.body)
         self.send(m)
 
-      home_feed_posts = user.fb.get_home_feed_posts(last_fetch)
-      self.log.debug("Forwarding %d home feed posts for user %s" % (len(home_feed_posts), user.number))
-      for post in home_feed_posts:
-        # Freeswitch freaks when I use strftime! TODO
-        #timestamp = time.strftime("%b %e at %I:%M%r", time.localtime(int(post.timestamp)))
-        timestamp = "Dec 01, 12:00am"
-        m = Message(self.id_to_number(user.fb.profile.facebook_id), user.number, "%s at %s" % (post.sender.name, timestamp), post.body)
-        self.send(m)
 
-      user.close_session()
-      user.update_last_fetch()
 
-  def handle_incoming(self, message):
+  def handle_incoming_sms(self, message):
     self.log.info("Incoming: %s" % message)
     self.msg = message
     if not message.is_valid():
@@ -117,14 +85,14 @@ class FacebookSMS:
         self.user.start_session()
     except AuthError:
         self.log.debug("Failed to auth login for user %s" % message.sender)
-        self.reply("Facebook SMS failed to authenticate. Please re-send your credentials to %s." % \
-                    self.conf.app_number)
+        self.reply("Facebook SMS failed to authenticate. " + \
+                   "Please re-send your credentials to %s." % self.conf.app_number)
         self.user.set_auth() #reset credentials
         return
-    except Exception as e:
-        self.reply("Facebook SMS service is currently unavailable. Please try again later.")
-        self.log.error("Failed to login user %s: %s" % (message.sender,e))
-        return
+    # except Exception as e:
+    #     self.reply("Facebook SMS service is currently unavailable. Please try again later.")
+    #     self.log.error("Failed to login user %s: %s" % (message.sender,e))
+    #     return
 
     if self.cmd_handler.looks_like_command(message):
       self.parse_command(message)
@@ -158,11 +126,6 @@ class FacebookSMS:
       raise ValueError("Invalid number %s. Missing prefix code %s" % (number, self.conf.number_prefix))
     return number[prefix_len:]
 
-  def post(self, message):
-    post = Post(self.user.fb.profile, FacebookUser(self.number_to_id(message.recipient)), message.body)
-    self.user.fb.post_status(post)
-    #TODO how do we handle delivery failures?
-
   def register_user(self):
     # Put user in table if doesnt exist
     if not User.exists(self, self.msg.sender):
@@ -190,6 +153,20 @@ class FacebookSMS:
       return
 
     # TODO how do we want to handle Internet connectivity issues for registration auth?
+    try:
+      self.user.fb.register(self.user.email, self.user.password)
+    except AccountExistsError:
+      self.reply("This FB account is already registered to another user")
+      self.user.delete()
+      return
+    except Exception as e:
+      self.log.error("Error registering user with exception %s" % e)
+      self.reply("The FB service is currently unavailable, please try again later")
+      self.user.delete()
+      return
+
+
+    # TODO how do we want to handle Internet connectivity issues for registration auth?
     if self.user.is_active:
       try:
         self.user.start_session()
@@ -199,10 +176,12 @@ class FacebookSMS:
         self.log.debug("Auth failed for user %s with email %s" % (self.user.number, self.user.email))
         self.reply("Authentication failed. Please enter your email address.")
         self.user.set_auth() # reset registration to retry process
+        return
       except Exception as e:
         self.log.error("Something bad happened while starting session for user %s: %s" % (self.user.number, e))
-        self.reply("Registration failed. Please try again later.")
+        self.reply("The FB service is currently unavailable, please try again later")
         self.user.delete()
+        return
 
 
 
@@ -260,14 +239,20 @@ class FacebookSMS:
     body = msg.body
 
     post = Post(sender, recipient, body)
-    # Messages to self are posted as status updates
-    if post.recipient == self.user.fb.profile.facebook_id:
-      self.log.debug("Posting status update: %s" % post)
-      self.user.fb.post_status(post)
-    # Messages to others are private messages
-    else:
-      self.log.debug("Posting private message: %s" % post)
-      self.user.fb.post_message(post)
+    try:
+      # Messages to self are posted as status updates
+        if post.recipient == self.user.fb.profile.facebook_id:
+          self.log.debug("Posting status update: %s" % post)
+          self.user.fb.post_status(post)
+        # Messages to others are private messages
+        else:
+          self.log.debug("Posting private message: %s" % post)
+          self.user.fb.post_message(post) #TODO handle failures
+    except AuthError:
+        self.reply("Message not delivered. Authentication failed. Please enter your email address.")
+        self.user.set_auth()
+    except Exception:
+        self.reply("Message not delivered. Service unavaialabe. Please try again later")
 
   def send(self, msg):
     self.log.debug("Sending: %s" % msg)

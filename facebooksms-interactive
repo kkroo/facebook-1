@@ -11,6 +11,9 @@ parser = argparse.ArgumentParser(description="Facebook Negative One, a SMS inter
 parser.add_argument('--from', '-f', action='store', dest='sender', \
     help="Sender of incoming message.")
 
+parser.add_argument('--imsi', '-imsi', action='store', dest='imsi', \
+    help="IMSI of sender.")
+
 parser.add_argument('--to', '-t', action='store', dest='recipient', \
     help="Recipient of incoming message.")
 
@@ -20,9 +23,6 @@ parser.add_argument('--message', '-m', action='store', dest='message', \
 parser.add_argument('--config', '-c', action='store', dest='config', \
     help="Configuration file (default: ./conf/facebooksms.yaml)", \
     default="./conf/facebooksms.yaml")
-
-parser.add_argument('--fetch', action='store_true', dest='fetch_mode', \
-    help="Go into fetch mode.")
 
 parser.add_argument('--log', '-l', action='store', dest='logfile', \
     help="log file (default: ./log/facebooksms.log)", \
@@ -36,7 +36,6 @@ args = parser.parse_args()
 conf_file = open(args.config, "r")
 config_dict = yaml.load("".join(conf_file.readlines()))
 
-
 log = logging.getLogger('facebooksms')
 if args.debug_mode:
   logging.basicConfig(filename=args.logfile, level=logging.DEBUG)
@@ -44,39 +43,17 @@ else:
   logging.basicConfig(filename=args.logfile)
 
 conf = facebooksms.Config(config_dict, log)
-app = facebooksms.FacebookSMS(conf)
 
-# So if we are using the chat session provider
-# and we crash prematurely, threads keep the script
-# from terminating so kill em on an exception
-def kill_threads():
-  for thread in threading.enumerate():
-    try:
-      thread.exit()
-    except Exception:
-      pass
-
-if args.fetch_mode:
-  if args.sender or args.recipient or args.message:
-    log.error("Sender, recipient, and message args shouldn't be set for fetch mode")
-  try:
-    app.fetch_updates(conf.fetch_number)
-  except Exception:
-    e = sys.exc_info()
-    traceback.print_exception(*e)
-    kill_threads()
-  finally:
-   app._cleanup()
+if not args.imsi and not args.sender and not args.recipient and not args.message:
+  log.error("IMSI, Sender, recipient, and message args must be set for send mode")
 else:
-  if not args.sender and not args.recipient and not args.message:
-    log.error("Sender, recipient, and message args must be set for send mode")
+  app = facebooksms.FacebookSMS(args.imsi, conf)
   msg = facebooksms.Message(args.sender, args.recipient, None, args.message)
   try:
-    app.handle_incoming(msg)
+    app.handle_incoming_sms(msg)
   except Exception:
     e = sys.exc_info()
     traceback.print_exception(*e)
-    kill_threads()
   finally:
    app._cleanup()
 

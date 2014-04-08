@@ -12,7 +12,8 @@ number_prefix:   999
 sender_type:     'test'
 
 # Facebook session provider
-provider_type:   'chat'
+provider_type:   'api'
 
-#Fech mode
-fetch_number:    10
+# API Key
+api_key:         '659d3653-299e-4908-87dc-cd3e0e8f36d7'
+api_url:         'https://127.0.0.1:8080'

@@ -4,7 +4,7 @@ from facebooksms import AuthError
 class User:
   def __init__(self, app, number):
     self.app = app
-    self.fb = app.session_provider()
+    self.fb = app.session_provider(app)
 
     self.number = None
     self.email = None
@@ -18,6 +18,9 @@ class User:
       self.app.log.error("Tried to init a nonexistent user: %s" % number)
 
     self.number, self.email, self.password = res[0]
+
+  def register(self):
+      self.fb.register(self.email, self.password)
 
   def start_session(self):
       self.fb.login(self.email, self.password)
@@ -45,14 +48,6 @@ class User:
         return False
 
     return True
-
-  def update_last_fetch(self):
-    self.app.log.debug("Setting last fetch for user: %s" % self.number)
-    if self.number is None:
-      return
-    self.app.db.execute("UPDATE OR IGNORE %s SET last_fetch =? WHERE number=?" % self.app.conf.t_users, (datetime.utcnow(), self.number))
-    self.app.db.commit()
-
 
 
   def delete(self):
@@ -85,7 +80,7 @@ class User:
       return False
 
     try:
-      app.db.execute("INSERT INTO %s(number, email, password, last_fetch) VALUES (?,?,?,?)" % app.conf.t_users, (number, email, password, datetime.utcnow()))
+      app.db.execute("INSERT INTO %s(number, email, password) VALUES (?,?,?)" % app.conf.t_users, (number, email, password))
       app.db.commit()
     except Exception as e:
       app.log.error("Error occured while registering user %s: %s" % (number, e))

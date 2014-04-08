@@ -32,11 +32,6 @@ def chat(message, args):
     app.msg_sender = fss
     args = args.split('|')
 
-    if len(args) == 1:
-      consoleLog("info", "Doing fetch for %d users\n" % conf.fetch_number)
-      app.fetch_updates(conf.fetch_number)
-      exit(0)
-
     if (len(args) < 3):
         consoleLog('err', 'Missing Args\n')
         exit(1)

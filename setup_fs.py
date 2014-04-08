@@ -8,7 +8,7 @@ setup(name="facebooksms",
       license='bsd',
       packages=['facebooksms'],
       scripts=['facebooksms-interactive'],
-      data_files=[('/etc/', ['conf/facebooksms.yaml']),
-                  ('/usr/local/freeswitch/scripts/', ['freeswitch/VBTS_FacebookSMS.py'])
+      data_files=[('/etc/facebooksms/', ['conf/facebooksms.yaml']),
+                  ('/usr/local/freeswitch/scripts/', ['freeswitch/VBTS_FacebookSMS_Out.py'])
                   ]
 )
