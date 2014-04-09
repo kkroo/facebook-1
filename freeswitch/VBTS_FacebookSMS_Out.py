@@ -36,7 +36,7 @@ def chat(message, args):
 
     logging.basicConfig(filename="/var/log/facebooksms.log", level="DEBUG")
     facebooksms_log = logging.getLogger("facebooksms.facebooksms")
-    conf_file = open("/etc/facebooksms.yaml", "r")
+    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     conf = facebooksms.Config(config_dict, facebooksms_log)
 
@@ -47,7 +47,7 @@ def chat(message, args):
 
     consoleLog('info', "Got '%s' from %s(%s) to %s\n" % (text, fromm, imsi, to))
     msg = facebooksms.Message(fromm, to, None, text, imsi)
-    app.handle_incoming_msg(msg)
+    app.handle_incoming_sms(msg)
 
 def fsapi(session, stream, env, args):
     #chat doesn't use message anyhow

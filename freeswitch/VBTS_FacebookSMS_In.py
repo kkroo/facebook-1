@@ -36,11 +36,11 @@ def chat(message, args):
 
     logging.basicConfig(filename="/var/log/facebooksms.log", level="DEBUG")
     facebooksms_log = logging.getLogger("facebooksms.facebooksms")
-    conf_file = open("/etc/facebooksms.yaml", "r")
+    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     conf = facebooksms.Config(config_dict, facebooksms_log)
 
-    app = facebooksms.FacebookSMS('', conf)
+    app = facebooksms.FacebookSMS(conf)
     app.fs = FreeSwitchMessenger.FreeSwitchMessenger()
     fss = FreeSwitchSender(app)
     app.msg_sender = fss

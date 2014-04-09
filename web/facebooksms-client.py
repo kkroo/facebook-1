@@ -27,7 +27,7 @@ class callback:
       conf = vbts_util.get_conf_dict()
       esl = ESLconnection(conf['fs_esl_ip'], conf['fs_esl_port'], conf['fs_esl_pass'])
       if esl.connected():
-         e = esl.api("python VBTS_FaceookSMS_In %s|%s|%s|%s" % (imsi, recipient, sender, body))
+         e = esl.api("python VBTS_FacebookSMS_In %s|%s|%s|%s" % (imsi, recipient, sender, body))
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 #!/usr/bin/python
 import threading
 import traceback
-
+import yaml
 import web, requests
-
+import logging
 import syslog
 import uuid
 from facebooksms import Post, FacebookChatSession, AuthError, Config
@@ -44,6 +44,7 @@ class login:
               web.AccountManager.remove(email)
               raise web.Unauthorized()
             except Exception as e:
+              print "Exception %s" % e
               raise web.InternalError(str(e))
             raise web.Accepted()
 
@@ -111,7 +112,7 @@ class AccountManager:
         print "From: %s Body: %s, To: %s" % (sender, body, email)
         accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
             where="email=$email AND active=$active " + \
-                  "AND accounts.base_station = basestations.id", \
+                  "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
             vars={"email": email, "active": 1})
         account = accounts[0]
         r = requests.post(account.callback_url, \
@@ -187,7 +188,10 @@ class AccountManager:
 
 if __name__ == "__main__":
     web.config.debug = True
-    conf_file = open("/etc/facebooksms.yaml", "r")
+    logging.basicConfig(filename="/var/log/facebooksms.log", level="DEBUG")
+    facebooksms_log = logging.getLogger("facebooksms.facebooksms")
+    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
+    config_dict = yaml.load("".join(conf_file.readlines()))
     web.fb_config = Config(config_dict, facebooksms_log)
     web.db = web.database(dbn='sqlite', db='/etc/facebooksms/web_api.sqlite3')
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \

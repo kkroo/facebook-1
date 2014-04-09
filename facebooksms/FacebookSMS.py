@@ -88,10 +88,10 @@ class FacebookSMS:
                    "Please re-send your credentials to %s." % self.conf.app_number)
         self.user.set_auth() #reset credentials
         return
-    # except Exception as e:
-    #     self.reply("Facebook SMS service is currently unavailable. Please try again later.")
-    #     self.log.error("Failed to login user %s: %s" % (message.sender,e))
-    #     return
+    except Exception as e:
+        self.reply("Facebook SMS service is currently unavailable. Please try again later.")
+        self.log.error("Failed to login user %s: %s" % (message.sender,e))
+        return
 
     if self.cmd_handler.looks_like_command(message):
       self.parse_command(message)

@@ -3,7 +3,7 @@ db_file:         '/etc/facebooksms/facebooksms.sqlite3'
 
 #DB Schema
 t_users:         'users'
-t_base_stations: 'base_stations'
+t_base_stations: 'basestations'
 
 #App settings
 app_number:      9999
