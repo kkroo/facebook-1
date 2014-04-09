@@ -3,11 +3,10 @@ import threading
 import traceback
 
 import web, requests
-from web.wsgiserver import CherryPyWSGIServer
 
 import syslog
 import uuid
-from facebooksms import Post, FacebookChatSession, AuthError
+from facebooksms import Post, FacebookChatSession, AuthError, Config
 
 urls = ("/register", "register",
         "/login", "login",
@@ -21,7 +20,7 @@ class base_station:
         if all(i in data for i in needed_fields):
             callback_url = str(data.callback_url)
             guid = uuid.uuid4()
-            web.db.insert('basestations', id=str(guid), callback_url=callback_url)
+            web.db.insert(web.fb_config.t_base_stations, id=str(guid), callback_url=callback_url)
             raise web.Accepted(str(guid))
         raise web.BadRequest()
 
@@ -38,7 +37,7 @@ class login:
             imsi =  str(data.imsi)
             syslog.syslog("Trying to login with %s, %s" % ( email, imsi))
             try:
-                web.db.update('accounts', where="email=$email", \
+                web.db.update(web.fb_config.t_users, where="email=$email", \
                     vars={"email" : email}, active=1)
                 web.AccountManager.auth(email, imsi)
             except AuthError:
@@ -64,7 +63,7 @@ class register:
             base_station = str(data.base_station)
             syslog.syslog("Trying to register imsi %s with %s, %s on basestation %s" % \
                 ( imsi, email, password, base_station))
-            result = web.db.select('basestations', where="id=$id", vars={'id': base_station})
+            result = web.db.select(web.fb_config.t_base_stations, where="id=$id", vars={'id': base_station})
             if not (result and web.AccountManager.add(email, password, imsi, base_station)):
                 raise web.Forbidden()
             raise web.Accepted()
@@ -110,13 +109,13 @@ class AccountManager:
         body = msg['body']
         email = '@'.join(str(msg['to']).split('@')[:2])
         print "From: %s Body: %s, To: %s" % (sender, body, email)
-        accounts = web.db.select(['accounts', 'basestations'], \
+        accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
             where="email=$email AND active=$active " + \
                   "AND accounts.base_station = basestations.id", \
             vars={"email": email, "active": 1})
         account = accounts[0]
         r = requests.post(account.callback_url, \
-            {'imsi': account.imsi, 'sender': sender, 'body': body})
+            {'imsi': account.imsi, 'recipient': email, 'sender': sender, 'body': body})
 
   """ Login to XMPP service. """
   def login(self, email, password):
@@ -130,7 +129,7 @@ class AccountManager:
 
   """ Login all users in the event of a restart """
   def start(self):
-    accounts = web.db.select('accounts', where="active=$active", vars={"active":1})
+    accounts = web.db.select(web.fb_config.t_users, where="active=$active", vars={"active":1})
     for account in accounts:
         try:
             email = account.email
@@ -143,7 +142,7 @@ class AccountManager:
               self.accounts[email].logout()
               syslog.syslog("Exception raised with %s: %s" % (email, e))
 
-    accounts = web.db.select('accounts', where="active=$active", vars={"active":0})
+    accounts = web.db.select(web.fb_config.t_users, where="active=$active", vars={"active":0})
     for account in accounts:
         self.remove(account.email)
 
@@ -151,7 +150,7 @@ class AccountManager:
   Public methods
   """
   def auth(self, email, imsi):
-        accounts = web.db.select('accounts', \
+        accounts = web.db.select(web.fb_config.t_users, \
             where="email=$email AND imsi=$imsi AND active=$active", \
             vars={"email": email, "imsi": imsi, "active": 1})
         try:
@@ -162,13 +161,13 @@ class AccountManager:
 
 
   def add(self, email, password, imsi, base_station):
-    accounts = web.db.select('accounts', where="email=$email AND active=1", \
+    accounts = web.db.select(web.fb_config.t_users, where="email=$email AND active=1", \
         vars={"email": email})
 
     if accounts or email in self.accounts:
         return False
     self.remove(email)
-    web.db.insert('accounts', \
+    web.db.insert(web.fb_config.t_users, \
         email=email, password=password, imsi=imsi, base_station=base_station)
     return True
 
@@ -177,7 +176,7 @@ class AccountManager:
       self.accounts[email].logout()
       del self.accounts[email]
 
-    web.db.delete('accounts', where="email=$email", vars={'email': email})
+    web.db.delete(web.fb_config.t_users, where="email=$email", vars={'email': email})
 
   def send_message(self, from_email, imsi, to, body):
       self.auth(from_email, imsi)
@@ -187,13 +186,13 @@ class AccountManager:
 
 
 if __name__ == "__main__":
-    CherryPyWSGIServer.ssl_certificate = "/etc/facebooksms/ssl_certificate"
-    CherryPyWSGIServer.ssl_private_key = "/etc/facebooksms/ssl_private_key"
     web.config.debug = True
-    web.db = web.database(dbn='sqlite', db='web_api.sqlite3')
-    web.db.query("CREATE TABLE IF NOT EXISTS accounts " \
+    conf_file = open("/etc/facebooksms.yaml", "r")
+    web.fb_config = Config(config_dict, facebooksms_log)
+    web.db = web.database(dbn='sqlite', db='/etc/facebooksms/web_api.sqlite3')
+    web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \
              "(email TEXT not NULL UNIQUE, password TEXT, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
-    web.db.query("CREATE TABLE IF NOT EXISTS basestations " \
+    web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_base_stations + \
              "(id TEXT not NULL UNIQUE, callback_url TEXT)")
 
 

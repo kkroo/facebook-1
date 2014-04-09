@@ -24,6 +24,10 @@ class Config:
       return self._scrub(self.config_dict['t_users'])
 
   @property
+  def t_base_stations(self):
+      return self._scrub(self.config_dict['t_base_stations'])
+
+  @property
   def db_file(self):
     return self.config_dict['db_file']
 

@@ -1,8 +1,9 @@
 #DB settings
-db_file:         './facebooksms.sqlite3'
+db_file:         '/etc/facebooksms/facebooksms.sqlite3'
 
 #DB Schema
 t_users:         'users'
+t_base_stations: 'base_stations'
 
 #App settings
 app_number:      9999
@@ -14,6 +15,8 @@ sender_type:     'test'
 # Facebook session provider
 provider_type:   'api'
 
-# API Key
-api_key:         '659d3653-299e-4908-87dc-cd3e0e8f36d7'
-api_url:         'https://127.0.0.1:8080'
+# If using the API provider..
+api_url:         'API_URL_HERE'
+
+# API Key (get this by visiting ${api_url}/base_station?callback_url=${client_callback}
+api_key:         'API_KEY_HERE'

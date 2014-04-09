@@ -15,10 +15,10 @@ class FacebookAPIClient(FacebookSessionProvider):
 
   def api_request(self, module, params):
     try:
-        params['imsi'] = self.app.imsi
+        params['imsi'] = self.app.msg.imsi
         request_url = "%s/%s" % (self.app.conf.api_url, module)
         self.app.log.debug("Making request to %s with args %s" % (request_url, params))
-        r = requests.post(request_url, data=params)
+        r = requests.post(request_url, data=params, verify=False)
     except Exception as e:
         self.app.log.error("FB Api client connection error %s" % e)
         raise ConnectionError()
@@ -27,10 +27,10 @@ class FacebookAPIClient(FacebookSessionProvider):
         self.app.log.debug("FB Api client auth error for user")
         raise AuthError()
     elif r.status_code == 500:
-        self.app.log.error("FB Api server connection error %s" % r.text)
+        self.app.log.error("FB Api server internal error %s" % r.text)
         raise ConnectionError()
     elif r.status_code == 400:
-        self.app.log.error("FB Api server bad request error %s" % r.text)
+        self.app.log.error("FB Api client bad request error %s" % r.text)
         raise ConnectionError()
 
     return r
@@ -50,7 +50,7 @@ class FacebookAPIClient(FacebookSessionProvider):
         raise AccountExistsError()
 
   def login(self, email, password):
-     self.api_request("login", {"email": email})
+     r = self.api_request("login", {"email": email})
 
      self.email = email
      psuedo_id = abs(hash(email)) % 10000

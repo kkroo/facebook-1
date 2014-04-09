@@ -3,10 +3,9 @@ import re
 from facebooksms import *
 
 class FacebookSMS:
-  def __init__(self, imsi, conf):
+  def __init__(self, conf):
     self.msg = None
     self.user = None
-    self.imsi = imsi
     self.conf = conf
     self.db = conf.db_conn
     self.session_provider = self._init_session_provider(self.conf.provider_type)
@@ -127,7 +126,7 @@ class FacebookSMS:
     return number[prefix_len:]
 
   def register_user(self):
-    # Put user in table if doesnt exist
+    # Put user in table if doesnt exist locally TODO and globally?
     if not User.exists(self, self.msg.sender):
       if not User.register(self, self.msg.sender):
         self.reply("This number is already associated with an account.")
@@ -137,7 +136,7 @@ class FacebookSMS:
                   "To begin please enter your email address.")
       return
 
-    # sanity check user is registered
+    # sanity check user is registered locally
     self.user = User(self, self.msg.sender)
     if not self.user.number == self.msg.sender:
       return
@@ -152,7 +151,7 @@ class FacebookSMS:
     if not self.user.password and not self.collect_password():
       return
 
-    # TODO how do we want to handle Internet connectivity issues for registration auth?
+    # check to make sure that the user is not registerd with API
     try:
       self.user.fb.register(self.user.email, self.user.password)
     except AccountExistsError:
@@ -165,8 +164,6 @@ class FacebookSMS:
       self.user.delete()
       return
 
-
-    # TODO how do we want to handle Internet connectivity issues for registration auth?
     if self.user.is_active:
       try:
         self.user.start_session()
@@ -178,12 +175,10 @@ class FacebookSMS:
         self.user.set_auth() # reset registration to retry process
         return
       except Exception as e:
-        self.log.error("Something bad happened while starting session for user %s: %s" % (self.user.number, e))
+        self.log.error("Error authenticating user with exception %s: %s" % (self.user.number, e))
         self.reply("The FB service is currently unavailable, please try again later")
-        self.user.delete()
+        # self.user.delete() TODO do we want to delete on conn failure, or let next auth handle it?
         return
-
-
 
   def send_registered(self):
     self.reply("Your account is now setup! " + \
@@ -223,7 +218,7 @@ class FacebookSMS:
       for friend in matches[:5]:
         result_msg += "\n %s - %s" % (friend.name, self.id_to_number(friend.facebook_id))
     self.reply(result_msg)
-  
+
   def wall_info(self):
     self.reply("The number of your wall is %s." % self.id_to_number(self.user.fb.profile.facebook_id))
 
@@ -247,7 +242,7 @@ class FacebookSMS:
         # Messages to others are private messages
         else:
           self.log.debug("Posting private message: %s" % post)
-          self.user.fb.post_message(post) #TODO handle failures
+          self.user.fb.post_message(post)
     except AuthError:
         self.reply("Message not delivered. Authentication failed. Please enter your email address.")
         self.user.set_auth()
