@@ -51,12 +51,10 @@ class FacebookAPIClient(FacebookSessionProvider):
         raise AccountExistsError()
 
   def login(self, email, password):
-     r = self.api_request("login", {"email": email})
-
      self.email = email
-     psuedo_id = abs(hash(email)) % 10000
-     psuedo_name = email.split('@')[0]
-     self.profile = FacebookUser(psuedo_id, psuedo_name)
+     r = self.api_request("login", {"email": self.email})
+     profile = json.loads(r.text)
+     self.profile = FacebookUser(profile['facebook_id'], profile['name'])
 
   def post_message(self, post):
      self.api_request("send_message", \

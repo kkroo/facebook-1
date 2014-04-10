@@ -63,10 +63,8 @@ class FacebookSMS:
 
     res = r.fetchall()
     if len(res) == 1:
-        m = Message(self.id_to_number(msg.sender), res[0][0], "", msg.body)
+        m = Message(self.id_to_number(msg.sender.facebook_id), res[0][0], msg.sender.name, msg.body)
         self.send(m)
-
-
 
   def handle_incoming_sms(self, message):
     self.log.info("Incoming: %s" % message)
@@ -182,10 +180,8 @@ class FacebookSMS:
 
   def send_registered(self):
     self.reply("Your account is now setup! " + \
-        "News feed updates will arrive from the number %s. " % self.id_to_number(self.user.fb.profile.facebook_id) + \
-        "Sending an SMS to that number will post a status update")
-    self.reply("You can send messages to friends by sending an SMS to %s<friend FB id>. " % self.conf.number_prefix + \
-        "Find your friend's number by invoking the \"friend\" command.")
+        "You can send messages to friends by sending an SMS to %s<friend FB id>. " % self.conf.number_prefix)
+    self.reply( "Find your friend's number by invoking the \"friend\" command.")
     self.reply('Send "help" to %s to learn how to use the service.' % self.conf.app_number)
 
   def collect_email(self):
@@ -236,13 +232,8 @@ class FacebookSMS:
     post = Post(sender, recipient, body)
     try:
       # Messages to self are posted as status updates
-        if post.recipient == self.user.fb.profile.facebook_id:
-          self.log.debug("Posting status update: %s" % post)
-          self.user.fb.post_status(post)
-        # Messages to others are private messages
-        else:
-          self.log.debug("Posting private message: %s" % post)
-          self.user.fb.post_message(post)
+        self.log.debug("Posting private message: %s" % post)
+        self.user.fb.post_message(post)
     except AuthError:
         self.reply("Message not delivered. Authentication failed. Please enter your email address.")
         self.user.set_auth()

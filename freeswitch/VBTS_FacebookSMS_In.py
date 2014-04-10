@@ -11,7 +11,7 @@ import yaml
 class FreeSwitchSender(facebooksms.Sender):
 
     def __init__(self, fbsms):
-    	self.fbsms = fbsms
+        self.fbsms = fbsms
 
     def send_sms(self, sender, recipient, subject, data):
         sender = str(sender)
@@ -21,13 +21,14 @@ class FreeSwitchSender(facebooksms.Sender):
 
 def chat(message, args):
     args = args.split('|')
-    if (len(args) < 4):
+    if (len(args) < 5):
         consoleLog('err', 'Missing Args\n')
         exit(1)
     imsi = args[0]
     to = args[1]
-    fromm = args[2]
-    text = args[3]
+    sender_id = args[2]
+    sender_name = args[3]
+    text = args[4]
     if ((not to or to == '') or
         (not fromm or fromm == '')):
         consoleLog('err', 'Malformed Args\n')
@@ -45,8 +46,9 @@ def chat(message, args):
     fss = FreeSwitchSender(app)
     app.msg_sender = fss
 
-    consoleLog('info', "Got '%s' from %s to %s(%s)\n" % (text, fromm, to, imsi))
-    msg = facebooksms.Message(fromm, to, None, text, imsi)
+    sender = FacebookUser(sender_id, sender_name)
+    consoleLog('info', "Got '%s' from %s to %s(%s)\n" % (text, sender, to, imsi))
+    msg = facebooksms.Message(sender, to, None, text, imsi)
     app.handle_incoming_msg(msg)
 
 def fsapi(session, stream, env, args):

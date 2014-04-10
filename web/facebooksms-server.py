@@ -49,7 +49,7 @@ class login:
             except Exception as e:
               print "Exception %s" % e
               raise web.InternalError(str(e))
-            raise web.Accepted()
+            raise web.Accepted(json.dumps(web.AccountManager[email].profile.__dict__))
 
         raise web.BadRequest()
 
@@ -131,17 +131,18 @@ class AccountManager:
   """ Handle incoming chats """
   def message_handler(self, msg):
     if msg['type'] in ('normal', 'chat'):
-        sender = str(msg['from']).split('@')[0][1:]
+        sender_id = str(msg['from']).split('@')[0][1:]
         body = msg['body']
         email = '@'.join(str(msg['to']).split('@')[:2])
-        print "From: %s Body: %s, To: %s" % (sender, body, email)
+        print "From: %s Body: %s, To: %s" % (sender_id, body, email)
         accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
             where="email=$email AND active=$active " + \
                   "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
             vars={"email": email, "active": 1})
         account = accounts[0]
+        sender_name = self.accounts[email].xmpp.get_vcard(msg['from'])['vcard_temp']['FN']
         r = requests.post(account.callback_url, \
-            {'imsi': account.imsi, 'recipient': email, 'sender': sender, 'body': body})
+            {'imsi': account.imsi, 'recipient': email, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
 
   """ Login to XMPP service. """
   def login(self, email, password):
