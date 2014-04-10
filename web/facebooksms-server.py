@@ -3,9 +3,11 @@ import threading
 import traceback
 import yaml
 import web, requests
+from web.wsgiserver import CherryPyWSGIServer
 import logging
 import syslog
 import uuid
+import json
 from facebooksms import Post, FacebookChatSession, AuthError, Config
 
 urls = ("/register", "register",
@@ -70,22 +72,44 @@ class register:
             raise web.Accepted()
         raise web.BadRequest()
 
+class find_friend:
+    def __init__(self):
+      pass
+
+    def POST(self):
+        data = web.input()
+        needed_fields = ["email", "imsi", "query"]
+        if all(i in data for i in needed_fields):
+            email = str(data.from_email)
+            query = str(data.body)
+            imsi = str(data.imsi)
+            try:
+                result = web.AccountManager.find_friend(email, imsi, to)
+            except AuthError:
+                web.AccountManager.remove(from_email)
+                raise web.Unauthorized()
+            except Exception as e:
+                 raise web.InternalError("%s" % e)
+            raise web.Accepted(json.dumps(result))
+
+        raise web.BadRequest()
+
 class send_message:
     def __init__(self):
       pass
 
     def POST(self):
         data = web.input()
-        needed_fields = ["from_email", "imsi", "to", "body"]
+        needed_fields = ["email", "imsi", "to", "body"]
         if all(i in data for i in needed_fields):
             to = str(data.to)
-            from_email = str(data.from_email)
+            email = str(data.email)
             body = str(data.body)
             imsi = str(data.imsi)
             try:
-                web.AccountManager.send_message(from_email, imsi, to, body)
+                web.AccountManager.send_message(email, imsi, to, body)
             except AuthError:
-                web.AccountManager.remove(from_email)
+                web.AccountManager.remove(email)
                 raise web.Unauthorized()
             except Exception as e:
                  raise web.InternalError("%s" % e)
@@ -179,12 +203,14 @@ class AccountManager:
 
     web.db.delete(web.fb_config.t_users, where="email=$email", vars={'email': email})
 
-  def send_message(self, from_email, imsi, to, body):
-      self.auth(from_email, imsi)
-      post = Post(from_email, to, body)
-      self.accounts[from_email].post_message(post)
+  def send_message(self, email, imsi, to, body):
+      self.auth(email, imsi)
+      post = Post(email, to, body)
+      self.accounts[email].post_message(post)
 
-
+  def find_friend(self, email, imsi, query):
+      self.auth(email, imsi)
+      return [friend.__dict__ for friend in self.accounts[email].find_friend(query)]
 
 if __name__ == "__main__":
     web.config.debug = True
@@ -202,6 +228,9 @@ if __name__ == "__main__":
 
     web.AccountManager = AccountManager()
     web.AccountManager.start()
+
+    CherryPyWSGIServer.ssl_certificate = "/etc/facebooksms/ssl_certificate"
+    CherryPyWSGIServer.ssl_private_key = "/etc/facebooksms/ssl_private_key"
 
     app = web.application(urls, locals())
     app.run()

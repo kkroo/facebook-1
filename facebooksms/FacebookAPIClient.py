@@ -1,6 +1,7 @@
 from facebooksms import *
 import requests
 import datetime
+import json
 
 
 class FacebookAPIClient(FacebookSessionProvider):
@@ -59,6 +60,12 @@ class FacebookAPIClient(FacebookSessionProvider):
 
   def post_message(self, post):
      self.api_request("send_message", \
-         {"from_email": self.email, "to": post.recipient, "body":post.body})
+         {"email": self.email, "to": post.recipient, "body":post.body})
+
+  def find_friend(self, name):
+     r = self.api_request("send_message", \
+            {"email": self.email, "query": name})
+     result = json.loads(r.text)
+     return [FacebookUser(x.id, x.name) for x in result]
 
 

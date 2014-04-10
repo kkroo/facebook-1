@@ -1,4 +1,5 @@
 import logging
+import json
 from time import time
 
 class AuthError(Exception):
@@ -81,14 +82,10 @@ class FacebookTestSession(FacebookSessionProvider):
   def profile(self):
     return self.profile
 
-class FacebookUser:
+class FacebookUser(object):
   def __init__(self, facebook_id, name):
-    self.id = facebook_id
+    self.facebook_id = str(facebook_id)
     self.name = name
-
-  @property
-  def facebook_id(self):
-    return str(self.id)
 
   def __str__(self):
     return '%s (#%d)' % (self.name, self.facebook_id)

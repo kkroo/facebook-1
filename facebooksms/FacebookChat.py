@@ -2,6 +2,10 @@ from facebooksms import *
 from Queue import *
 import sleekxmpp
 import datetime
+from lxml.html import fromstring, tostring
+from lxml.cssselect import CSSSelector
+import requests
+from urlparse import parse_qs, urlparse
 
 
 class FacebookChatSession(FacebookSessionProvider):
@@ -28,6 +32,8 @@ class FacebookChatSession(FacebookSessionProvider):
     if self.xmpp is not None:
       raise Exception("Session in progress!")
 
+    self.email = email
+    self.password = password
     psuedo_id = abs(hash(email)) % 10000
     psuedo_name = email.split('@')[0]
     self.jid = "%s@chat.facebook.com" % email
@@ -50,6 +56,47 @@ class FacebookChatSession(FacebookSessionProvider):
     #print "Getting vcard"
     #print self.xmpp.get_vcard()
     self.profile = FacebookUser(psuedo_id, psuedo_name)
+
+  def find_friend(self, name_query):
+    if not self.auth_ok:
+      raise AuthError()
+
+      headers = {'User-Agent': 'Mozilla/5.0 (Symbian/3; Series60/5.2 NokiaN8-00/012.002; Profile/MIDP-2.1 Configuration/CLDC-1.1 ) AppleWebKit/533.4 (KHTML, like Gecko) NokiaBrowser/7.3.0 Mobile Safari/533.4 3gpp-gba'}
+
+    # start session
+    r = requests.session()
+    q = r.post('https://m.facebook.com/login.php', data={'email': self.email, 'pass': self.password}, headers=headers)
+    if 'login_form' in q.text:
+        raise AuthError()
+
+    # do the search
+    q = r.get('https://m.facebook.com/search/', params={'search': 'people', 'query': "Omar Ramadan"}, headers=headers)
+
+    # end the session so we look more human?
+    r.get('https://m.facebook.com/logout.php')
+
+    h = fromstring(q.text.encode('utf-8'))
+    sel = CSSSelector('div.listSelector tr td.name')
+    sel_link = CSSSelector('a')
+
+    results_raw = [sel_link(x) for x in sel(h)]
+    results = []
+    for result in results_raw:
+        if len(result) < 2:
+          continue
+        name = result[0].text.strip()
+        link = result[1].attrib['href']
+        fb_id = None
+
+        params = parse_qs(urlparse(link).query)
+        if 'id' in params or 'ids' in params:
+            fb_id = params['id'][0] if 'id' in params else params['ids'][0]
+        if name and ord(name[-1]) == 8206:
+            name = name[:-1].strip()
+        if name and fb_id:
+            results.append(FacebookUser(fb_id, name))
+
+    return results
 
   def get_messages(self, earliest_timestamp):
     #print self.xmpp.get_messages(self.jid, earliest_timestamp - datetime.timedelta(days=5))
