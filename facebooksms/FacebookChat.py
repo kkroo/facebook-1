@@ -61,7 +61,7 @@ class FacebookChatSession(FacebookSessionProvider):
     if not self.auth_ok:
       raise AuthError()
 
-      headers = {'User-Agent': 'Mozilla/5.0 (Symbian/3; Series60/5.2 NokiaN8-00/012.002; Profile/MIDP-2.1 Configuration/CLDC-1.1 ) AppleWebKit/533.4 (KHTML, like Gecko) NokiaBrowser/7.3.0 Mobile Safari/533.4 3gpp-gba'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Symbian/3; Series60/5.2 NokiaN8-00/012.002; Profile/MIDP-2.1 Configuration/CLDC-1.1 ) AppleWebKit/533.4 (KHTML, like Gecko) NokiaBrowser/7.3.0 Mobile Safari/533.4 3gpp-gba'}
 
     # start session
     r = requests.session()
@@ -70,7 +70,7 @@ class FacebookChatSession(FacebookSessionProvider):
         raise AuthError()
 
     # do the search
-    q = r.get('https://m.facebook.com/search/', params={'search': 'people', 'query': "Omar Ramadan"}, headers=headers)
+    q = r.get('https://m.facebook.com/search/', params={'search': 'people', 'query': name_query}, headers=headers)
 
     # end the session so we look more human?
     r.get('https://m.facebook.com/logout.php')

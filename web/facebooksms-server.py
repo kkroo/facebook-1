@@ -13,7 +13,8 @@ from facebooksms import Post, FacebookChatSession, AuthError, Config
 urls = ("/register", "register",
         "/login", "login",
         "/send_message", "send_message",
-        "/base_station", "base_station")
+        "/base_station", "base_station",
+        "/find_friend",  "find_friend")
 
 class base_station:
     def GET(self):
@@ -80,13 +81,13 @@ class find_friend:
         data = web.input()
         needed_fields = ["email", "imsi", "query"]
         if all(i in data for i in needed_fields):
-            email = str(data.from_email)
-            query = str(data.body)
+            email = str(data.email)
+            query = str(data.query)
             imsi = str(data.imsi)
             try:
-                result = web.AccountManager.find_friend(email, imsi, to)
+                result = web.AccountManager.find_friend(email, imsi, query)
             except AuthError:
-                web.AccountManager.remove(from_email)
+                web.AccountManager.remove(email)
                 raise web.Unauthorized()
             except Exception as e:
                  raise web.InternalError("%s" % e)

@@ -63,9 +63,9 @@ class FacebookAPIClient(FacebookSessionProvider):
          {"email": self.email, "to": post.recipient, "body":post.body})
 
   def find_friend(self, name):
-     r = self.api_request("send_message", \
+     r = self.api_request("find_friend", \
             {"email": self.email, "query": name})
      result = json.loads(r.text)
-     return [FacebookUser(x.id, x.name) for x in result]
+     return [FacebookUser(x['facebook_id'], x['name']) for x in result]
 
 
