@@ -20,7 +20,7 @@ class User:
     self.number, self.email, self.registered = res[0]
 
   def start_session(self):
-      self.fb.login(self.email, self.app.msg.imsi)
+      self.fb.login()
 
   def close_session(self):
     if not self.fb.profile is None:
@@ -67,6 +67,10 @@ class User:
     self.app.log.debug("Deleting user: %s" % self.number)
     if self.number is None:
       return
+
+    # if this fails, it will raise an exception but at least will be synced with basestation
+    self.fb.unsubscribe()
+
     self.app.db.execute("DELETE FROM %s WHERE number=?" % self.app.conf.t_users, (self.number, ))
     self.app.db.commit()
 

@@ -11,6 +11,7 @@ import json
 from facebooksms import Post, FacebookChatSession, AuthError, Config
 
 urls = ("/register", "register",
+        "/unsubscribe", "unsubscribe",
         "/login", "login",
         "/send_message", "send_message",
         "/base_station", "base_station",
@@ -34,22 +35,21 @@ class login:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["email", "imsi"]
+        needed_fields = ["imsi"]
         if all(i in data for i in needed_fields):
-            email = str(data.email)
             imsi =  str(data.imsi)
-            syslog.syslog("Trying to login with %s, %s" % ( email, imsi))
+            syslog.syslog("Trying to login with  %s" % (imsi))
             try:
-                web.db.update(web.fb_config.t_users, where="email=$email", \
-                    vars={"email" : email}, active=1)
-                web.AccountManager.auth(email, imsi)
+                web.db.update(web.fb_config.t_users, where="imsi=$imsi", \
+                    vars={"imsi" : imsi}, active=1)
+                web.AccountManager.auth(imsi)
             except AuthError:
-              web.AccountManager.remove(email)
+              web.AccountManager.remove(imsi)
               raise web.Unauthorized()
             except Exception as e:
               print "Exception %s" % e
               raise web.InternalError(str(e))
-            raise web.Accepted(json.dumps(web.AccountManager[email].profile.__dict__))
+            raise web.Accepted(json.dumps(web.AccountManager[imsi].profile.__dict__))
 
         raise web.BadRequest()
 
@@ -73,21 +73,36 @@ class register:
             raise web.Accepted()
         raise web.BadRequest()
 
+class unsubscribe:
+    def __init__(self):
+        pass
+
+    def POST(self):
+        data = web.input()
+        needed_fields = ["imsi"]
+        if all(i in data for i in needed_fields):
+            imsi =  str(data.imsi)
+            syslog.syslog("Trying to unsubscribe imsi %s" % imsi)
+            result = web.db.select(self.web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
+            if not (result and web.AccountManager.remove(imsi)):
+                raise web.BadRequest()
+            raise web.Accepted()
+        raise web.BadRequest()
+
 class find_friend:
     def __init__(self):
       pass
 
     def POST(self):
         data = web.input()
-        needed_fields = ["email", "imsi", "query"]
+        needed_fields = ["imsi", "query"]
         if all(i in data for i in needed_fields):
-            email = str(data.email)
             query = str(data.query)
             imsi = str(data.imsi)
             try:
-                result = web.AccountManager.find_friend(email, imsi, query)
+                result = web.AccountManager.find_friend(imsi, query)
             except AuthError:
-                web.AccountManager.remove(email)
+                web.AccountManager.remove(imsi)
                 raise web.Unauthorized()
             except Exception as e:
                  raise web.InternalError("%s" % e)
@@ -101,16 +116,15 @@ class send_message:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["email", "imsi", "to", "body"]
+        needed_fields = ["imsi", "to", "body"]
         if all(i in data for i in needed_fields):
             to = str(data.to)
-            email = str(data.email)
             body = str(data.body)
             imsi = str(data.imsi)
             try:
-                web.AccountManager.send_message(email, imsi, to, body)
+                web.AccountManager.send_message(imsi, to, body)
             except AuthError:
-                web.AccountManager.remove(email)
+                web.AccountManager.remove(imsi)
                 raise web.Unauthorized()
             except Exception as e:
                  raise web.InternalError("%s" % e)
@@ -139,20 +153,20 @@ class AccountManager:
             where="email=$email AND active=$active " + \
                   "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
             vars={"email": email, "active": 1})
-        account = accounts[0]
-        sender_name = self.accounts[email].xmpp.get_vcard(msg['from'])['vcard_temp']['FN']
-        r = requests.post(account.callback_url, \
-            {'imsi': account.imsi, 'recipient': email, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
+        for account in accounts:
+          sender_name = self.accounts[imsi].xmpp.get_vcard(msg['from'])['vcard_temp']['FN']
+          r = requests.post(account.callback_url, \
+              {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
 
   """ Login to XMPP service. """
-  def login(self, email, password):
-    if email in self.accounts:
+  def login(self, email, password, imsi):
+    if imsi in self.accounts:
         return
 
     session = FacebookChatSession()
     session.login(email, password)
     session.xmpp.add_message_handler(self.message_handler)
-    self.accounts[email] = session
+    self.accounts[imsi] = session
 
   """ Login all users in the event of a restart """
   def start(self):
@@ -161,58 +175,68 @@ class AccountManager:
         try:
             email = account.email
             password = account.password
-            self.login(email, password)
+            imsi = account.imsi
+            self.login(email, password, imsi)
         except AuthError:
-            self.remove(email)
+            self.remove(imsi)
         except Exception as e:
-            if email in self.accounts:
-              self.accounts[email].logout()
-              syslog.syslog("Exception raised with %s: %s" % (email, e))
+            if imsi in self.accounts:
+              self.accounts[imsi].logout()
+              syslog.syslog("Exception raised with %s: %s" % (imsi, e))
 
     accounts = web.db.select(web.fb_config.t_users, where="active=$active", vars={"active":0})
     for account in accounts:
-        self.remove(account.email)
+        self.remove(account.imsi)
 
   """
   Public methods
   """
-  def auth(self, email, imsi):
+  def auth(self, imsi):
         accounts = web.db.select(web.fb_config.t_users, \
-            where="email=$email AND imsi=$imsi AND active=$active", \
-            vars={"email": email, "imsi": imsi, "active": 1})
+            where="imsi=$imsi AND active=$active", \
+            vars={"imsi": imsi, "active": 1})
         try:
+           email = accounts[0].email
            password = accounts[0].password
         except Exception:
            raise AuthError()
-        self.login(email, password)
+        self.login(email, password, imsi)
 
 
   def add(self, email, password, imsi, base_station):
-    accounts = web.db.select(web.fb_config.t_users, where="email=$email AND active=1", \
-        vars={"email": email})
+    accounts = web.db.select(web.fb_config.t_users, where="imsi=$imsi AND active=1", \
+        vars={"imsi": imsi})
 
-    if accounts or email in self.accounts:
+    if accounts or imsi in self.accounts:
         return False
-    self.remove(email)
+    self.remove(imsi)
     web.db.insert(web.fb_config.t_users, \
         email=email, password=password, imsi=imsi, base_station=base_station)
     return True
 
-  def remove(self, email):
-    if email in self.accounts:
-      self.accounts[email].logout()
-      del self.accounts[email]
+  def remove(self, imsi):
+    if imsi in self.accounts:
+      self.accounts[imsi].logout()
+      del self.accounts[imsi]
 
-    web.db.delete(web.fb_config.t_users, where="email=$email", vars={'email': email})
+    web.db.delete(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
 
-  def send_message(self, email, imsi, to, body):
-      self.auth(email, imsi)
+  def send_message(self, imsi, to, body):
+      accounts = web.db.select(web.fb_config.t_users, \
+            where="imsi=$imsi AND active=$active", \
+            vars={"imsi": imsi, "active": 1})
+
+      try:
+         email = accounts[0].email
+      except Exception:
+         raise AuthError()
+      self.auth(imsi)
       post = Post(email, to, body)
-      self.accounts[email].post_message(post)
+      self.accounts[imsi].post_message(post)
 
-  def find_friend(self, email, imsi, query):
-      self.auth(email, imsi)
-      return [friend.__dict__ for friend in self.accounts[email].find_friend(query)]
+  def find_friend(self, imsi, query):
+      self.auth(imsi)
+      return [friend.__dict__ for friend in self.accounts[imsi].find_friend(query)]
 
 if __name__ == "__main__":
     web.config.debug = True
@@ -223,7 +247,7 @@ if __name__ == "__main__":
     web.fb_config = Config(config_dict, facebooksms_log)
     web.db = web.database(dbn='sqlite', db='/etc/facebooksms/web_api.sqlite3')
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \
-             "(email TEXT not NULL UNIQUE, password TEXT, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
+             "(email TEXT not NULL, password TEXT, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_base_stations + \
              "(id TEXT not NULL UNIQUE, callback_url TEXT)")
 
@@ -237,5 +261,5 @@ if __name__ == "__main__":
     app = web.application(urls, locals())
     app.run()
     print web.AccountManager.accounts
-    for email, session in web.AccountManager.accounts.items():
+    for imsi, session in web.AccountManager.accounts.items():
         session.logout()

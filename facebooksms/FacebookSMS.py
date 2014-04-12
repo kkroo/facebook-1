@@ -177,7 +177,7 @@ class FacebookSMS:
     except Exception as e:
       self.log.error("Error authenticating user with exception %s: %s" % (self.user.number, e))
       self.reply("Could not complete the registration process. The FB service is currently unavailable, please try again later")
-      self.user.delete() # TODO do we want to delete on conn failure, or let next auth handle it?
+      self.user.delete()
       return
 
   def send_registered(self):
@@ -204,6 +204,14 @@ class FacebookSMS:
       self.reply("Please enter a valid password.")
       return False
     return password
+
+  def unsubscribe(self):
+    try:
+        self.user.delete()
+        self.reply("You have been successfully unsubscribed from this service")
+    except Exception as e:
+        self.log.error("Error while unsubscribing %s: %s" % (self.user.number, e))
+        self.reply("The FB service is currently unavailable, please try again later.")
 
   def find_friend(self, query):
     matches = self.user.fb.find_friend(query)

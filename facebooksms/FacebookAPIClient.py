@@ -50,19 +50,21 @@ class FacebookAPIClient(FacebookSessionProvider):
         self.app.log.debug("FB api client account exists already %s" % email)
         raise AccountExistsError()
 
-  def login(self, email, imsi):
-     self.email = email
-     r = self.api_request("login", {"email": self.email})
+  def unsubscribe(self):
+      self.api_request("unsubscribe", {})
+
+  def login(self):
+     r = self.api_request("login", {})
      profile = json.loads(r.text)
      self.profile = FacebookUser(profile['facebook_id'], profile['name'])
 
   def post_message(self, post):
      self.api_request("send_message", \
-         {"email": self.email, "to": post.recipient, "body":post.body})
+         {"to": post.recipient, "body":post.body})
 
   def find_friend(self, name):
      r = self.api_request("find_friend", \
-            {"email": self.email, "query": name})
+            {"query": name})
      result = json.loads(r.text)
      return [FacebookUser(x['facebook_id'], x['name']) for x in result]
 

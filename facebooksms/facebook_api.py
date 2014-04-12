@@ -47,7 +47,10 @@ class FacebookTestSession(FacebookSessionProvider):
   def register(self, email, password):
     self.password = password
 
-  def login(self, email, imsi):
+  def unsubscribe(self):
+    pass
+
+  def login(self):
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
     if self.password != "password":
