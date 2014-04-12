@@ -25,7 +25,6 @@ def chat(message, args):
         consoleLog('err', 'Missing Args\n')
         exit(1)
     imsi = args[0]
-    to = args[1]
     sender_id = args[2]
     sender_name = args[3]
     text = args[4]
@@ -35,11 +34,11 @@ def chat(message, args):
         exit(1)
 
 
-    logging.basicConfig(filename="/var/log/facebooksms.log", level="DEBUG")
-    facebooksms_log = logging.getLogger("facebooksms.facebooksms")
+    facebooksms_log = logging.getLogger("facebooksms.callback")
     conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     conf = facebooksms.Config(config_dict, facebooksms_log)
+    logging.basicConfig(filename="%s/callback.log" % conf.log_dir, level=conf.log_level)
 
     app = facebooksms.FacebookSMS(conf)
     app.fs = FreeSwitchMessenger.FreeSwitchMessenger()
@@ -47,8 +46,8 @@ def chat(message, args):
     app.msg_sender = fss
 
     sender = FacebookUser(sender_id, sender_name)
-    consoleLog('info', "Got '%s' from %s to %s(%s)\n" % (text, sender, to, imsi))
-    msg = facebooksms.Post(sender, to, text)
+    consoleLog('info', "Got '%s' from %s to %s\n" % (text, sender, imsi))
+    msg = facebooksms.Post(sender, to, imsi)
     app.handle_incoming_post(msg)
 
 def fsapi(session, stream, env, args):

@@ -87,13 +87,13 @@ class User:
     return self.registered
 
   @staticmethod
-  def register(app, number, email=None, password=None):
+  def register(app, number, email=None):
     if User.is_registered(app, number):
       app.log.error("Trying to register user %s twice." % number)
       return False
 
     try:
-      app.db.execute("INSERT INTO %s(number, email, password) VALUES (?,?,?)" % app.conf.t_users, (number, email, password))
+      app.db.execute("INSERT INTO %s(number, email, imsi) VALUES (?,?,?)" % app.conf.t_users, (number, email, app.msg.imsi))
       app.db.commit()
     except Exception as e:
       app.log.error("Error occured while registering user, user already registered %s: %s" % (number, e))

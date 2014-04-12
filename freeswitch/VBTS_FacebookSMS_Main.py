@@ -11,7 +11,7 @@ import yaml
 class FreeSwitchSender(facebooksms.Sender):
 
     def __init__(self, fbsms):
-    	self.fbsms = fbsms
+        self.fbsms = fbsms
 
     def send_sms(self, sender, recipient, subject, data):
         sender = str(sender)
@@ -34,11 +34,11 @@ def chat(message, args):
         exit(1)
 
 
-    logging.basicConfig(filename="/var/log/facebooksms.log", level="DEBUG")
-    facebooksms_log = logging.getLogger("facebooksms.facebooksms")
+    facebooksms_log = logging.getLogger("facebooksms.main")
     conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     conf = facebooksms.Config(config_dict, facebooksms_log)
+    logging.basicConfig(filename="%s/main.log" % conf.log_dir, level=conf.log_level)
 
     app = facebooksms.FacebookSMS(conf)
     app.fs = FreeSwitchMessenger.FreeSwitchMessenger()
@@ -46,6 +46,7 @@ def chat(message, args):
     app.msg_sender = fss
 
     consoleLog('info', "Got '%s' from %s(%s) to %s\n" % (text, fromm, imsi, to))
+    facebooksms_log.info("Got '%s' from %s(%s) to %s" % (text, fromm, imsi, to))
     msg = facebooksms.Message(fromm, to, None, text, imsi)
     app.handle_incoming_sms(msg)
 
@@ -58,7 +59,7 @@ def fsapi(session, stream, env, args):
 """
     <extension name="facebooksms">
       <condition field="vbts_tp_dest_address" expression="^999\d+$">
-        <action application="python" data="VBTS_FacebookSMS_Out ${from_user}|${vbts_tp_dest_address}|${openbts_callerid}|${vbts_text}"/>
+        <action application="python" data="VBTS_FacebookSMS_Main ${from_user}|${vbts_tp_dest_address}|${openbts_callerid}|${vbts_text}"/>
         <action application="set" data="response_text=${_openbts_ret}" />
       </condition>
     </extension>

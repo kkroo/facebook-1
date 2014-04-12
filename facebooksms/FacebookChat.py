@@ -16,8 +16,8 @@ class FacebookChatSession(FacebookSessionProvider):
   def __init__(self, app=None):
     self.profile = None
     self.jid = None
-    xmpp_log = logging.getLogger("sleekxmpp")
-    self.log = logging.getLogger("facebooksms")
+    xmpp_log = logging.getLogger("facebooksms.xmpp")
+    self.log = logging.getLogger("facebooksms.xmpp")
     xmpp_log.setLevel("INFO")
     self.xmpp = None
     self.web_session = None

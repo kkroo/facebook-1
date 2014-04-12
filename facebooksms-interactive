@@ -28,21 +28,16 @@ parser.add_argument('--log', '-l', action='store', dest='logfile', \
     help="log file (default: ./log/facebooksms.log)", \
     default="./log/facebooksms.log")
 
-parser.add_argument('--debug', action='store_true', dest='debug_mode', \
-    help="enable debug logging.")
 args = parser.parse_args()
 
 
 conf_file = open(args.config, "r")
 config_dict = yaml.load("".join(conf_file.readlines()))
 
-log = logging.getLogger('facebooksms')
-if args.debug_mode:
-  logging.basicConfig(filename=args.logfile, level=logging.DEBUG)
-else:
-  logging.basicConfig(filename=args.logfile)
-
+log = logging.getLogger('facebooksms.main')
 conf = facebooksms.Config(config_dict, log)
+logging.basicConfig(filename="%s/main.log" % conf.log_dir, level=conf.log_level)
+
 
 if not args.imsi and not args.sender and not args.recipient and not args.message:
   log.error("IMSI, Sender, recipient, and message args must be set for send mode")

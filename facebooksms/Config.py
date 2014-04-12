@@ -32,6 +32,14 @@ class Config:
     return self.config_dict['db_file']
 
   @property
+  def log_dir(self):
+    return self.config_dict['log_dir']
+
+  @property
+  def log_level(self):
+    return self.config_dict['log_level']
+
+  @property
   def app_number(self):
     return self.config_dict['app_number']
 
@@ -58,4 +66,16 @@ class Config:
   @property
   def api_url(self):
     return self.config_dict['api_url']
+
+  @property
+  def api_db_file(self):
+    return self.config_dict['api_db_file']
+
+  @property
+  def api_ssl_cert(self):
+    return self.config_dict['api_ssl_cert']
+
+  @property
+  def api_ssl_key(self):
+    return self.config_dict['api_ssl_key']
 

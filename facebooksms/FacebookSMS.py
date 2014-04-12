@@ -48,7 +48,7 @@ class FacebookSMS:
       # should be fine.
       self.db.execute("CREATE TABLE IF NOT EXISTS %s " % self.conf.t_users + \
           "(number TEXT not NULL UNIQUE ON CONFLICT IGNORE, " + \
-          "email TEXT, registered INTEGER DEFAULT 0 )" )
+          "email TEXT, imsi TEXT not NULL UNIQUE, registered INTEGER DEFAULT 0 )" )
       self.db.commit()
 
   def _cleanup(self):
@@ -57,7 +57,7 @@ class FacebookSMS:
 
   def handle_incoming_post(self, post):
     r = self.db.execute("SELECT number FROM %s " % (self.conf.t_users,) + \
-          "WHERE email = ? AND registered = 1 LIMIT 1", (post.recipient,))
+          "WHERE imsi = ? AND registered = 1 LIMIT 1", (post.recipient,))
 
     res = r.fetchall()
     if len(res) == 1:
