@@ -40,14 +40,17 @@ class FacebookSessionProvider:
 
 class FacebookTestSession(FacebookSessionProvider):
   """ This is a slug test class for the Facebook Session Provider"""
-  def __init__(self, app):
+  def __init__(self, app=None):
     self.profile = None
     self.logger = logging.getLogger("testsession")
 
-  def login(self, email, password):
+  def register(self, email, password):
+    self.password = password
+
+  def login(self, email, imsi):
     """ Log the user in and cache the session
       This method can throw a whole bunch of exceptions, be ready to catch them """
-    if password != "password":
+    if self.password != "password":
       raise AuthError()
 
     psuedo_id = abs(hash(email)) % 10000
@@ -64,13 +67,6 @@ class FacebookTestSession(FacebookSessionProvider):
     self.logger.info("Friends matching query %s: %d/%d" % \
         (query, len(results), len(self.get_friend_list())))
     return results
-
-  def get_home_feed_posts(self, earliest_timestamp):
-    return [Post(self.friends[1], self.friends[1].facebook_id, "It's a beautiful day.", 1234, time() - 1000),
-            Post(self.friends[0], self.friends[0].facebook_id, "Here is a status update.", 567, time()) ]
-
-  def get_messages(self, earliest_timestamp):
-    return [Post(self.friends[1], self.profile.facebook_id, "Congrats you got a PM!", 3456, time())]
 
   def post_status(self, post):
     self.logger.info("Posting status %s" % post)
@@ -91,10 +87,10 @@ class FacebookUser(object):
     return '%s (#%d)' % (self.name, self.facebook_id)
 
 class Post:
-  def __init__(self, sender, recipient_id, body, post_id=None, timestamp=None):
+  def __init__(self, sender, recipient, body, post_id=None, timestamp=None):
     self.post_id = post_id
     self.sender = sender
-    self.recipient = recipient_id
+    self.recipient = recipient
     self.timestamp = timestamp if timestamp else time()
     self.body = body
 

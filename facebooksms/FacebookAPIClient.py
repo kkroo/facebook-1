@@ -50,7 +50,7 @@ class FacebookAPIClient(FacebookSessionProvider):
         self.app.log.debug("FB api client account exists already %s" % email)
         raise AccountExistsError()
 
-  def login(self, email, password):
+  def login(self, email, imsi):
      self.email = email
      r = self.api_request("login", {"email": self.email})
      profile = json.loads(r.text)

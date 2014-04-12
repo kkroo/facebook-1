@@ -8,47 +8,60 @@ class User:
 
     self.number = None
     self.email = None
-    self.password = None
+    self.registered = None
 
     self.app.log.debug("Fetching user %s" % number)
-    r = self.app.db.execute("SELECT number, email, password FROM %s WHERE number=?" % self.app.conf.t_users, (number,))
+    r = self.app.db.execute("SELECT number, email, registered FROM %s WHERE number=?" % self.app.conf.t_users, (number,))
     res = r.fetchall()
 
     if len(res) == 0:
       self.app.log.error("Tried to init a nonexistent user: %s" % number)
 
-    self.number, self.email, self.password = res[0]
-
-  def register(self):
-      self.fb.register(self.email, self.password)
+    self.number, self.email, self.registered = res[0]
 
   def start_session(self):
-      self.fb.login(self.email, self.password)
+      self.fb.login(self.email, self.app.msg.imsi)
 
   def close_session(self):
     if not self.fb.profile is None:
       self.fb.logout()
 
   """ return True/False"""
-  def set_auth(self, email=None, password=None):
-    self.app.log.debug("Setting auth for user: %s" % self.number)
+  def set_email(self, email=None):
+    self.app.log.debug("Setting email for user: %s" % self.number)
     if self.number is None:
       return False
 
     self.email = email
-    self.password = password
 
     try:
-      self.app.db.execute("UPDATE %s SET email=?, password=? WHERE number=?" % \
-            self.app.conf.t_users, (email, password, self.number))
+      self.app.db.execute("UPDATE %s SET email=? WHERE number=?" % \
+            self.app.conf.t_users, (email, self.number))
       self.app.db.commit()
     except Exception as e:
-        self.app.log.error("Something bad happened while updating auth for user %s: %s" % \
+        self.app.log.error("Something bad happened while updating email for user %s: %s" % \
             self.number, e)
         return False
 
     return True
+  """ return True/False"""
+  def set_registered(self, registered):
+    self.app.log.debug("Setting registered for user: %s" % self.number)
+    if self.number is None:
+      return False
 
+    self.registered = registered
+
+    try:
+      self.app.db.execute("UPDATE %s SET registered=? WHERE number=?" % \
+            self.app.conf.t_users, ( 1 if registered else 0, self.number))
+      self.app.db.commit()
+    except Exception as e:
+        self.app.log.error("Something bad happened while updating registered for user %s: %s" % \
+            self.number, e)
+        return False
+
+    return True
 
   def delete(self):
     self.app.log.debug("Deleting user: %s" % self.number)
@@ -56,10 +69,6 @@ class User:
       return
     self.app.db.execute("DELETE FROM %s WHERE number=?" % self.app.conf.t_users, (self.number, ))
     self.app.db.commit()
-
-  @property
-  def is_active(self):
-    return self.email != None and self.password != None
 
   @property
   def number(self):
@@ -70,8 +79,8 @@ class User:
     return self.email
 
   @property
-  def password(self):
-    return self.password
+  def registered(self):
+    return self.registered
 
   @staticmethod
   def register(app, number, email=None, password=None):
@@ -83,7 +92,7 @@ class User:
       app.db.execute("INSERT INTO %s(number, email, password) VALUES (?,?,?)" % app.conf.t_users, (number, email, password))
       app.db.commit()
     except Exception as e:
-      app.log.error("Error occured while registering user %s: %s" % (number, e))
+      app.log.error("Error occured while registering user, user already registered %s: %s" % (number, e))
       return False
 
     return True
@@ -101,6 +110,6 @@ class User:
   def is_registered(app, number):
     if User.exists(app, number):
       u = User(app, number)
-      return u.is_active
+      return u.registered
     return False
 

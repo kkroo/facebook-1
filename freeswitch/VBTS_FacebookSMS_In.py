@@ -48,8 +48,8 @@ def chat(message, args):
 
     sender = FacebookUser(sender_id, sender_name)
     consoleLog('info', "Got '%s' from %s to %s(%s)\n" % (text, sender, to, imsi))
-    msg = facebooksms.Message(sender, to, None, text, imsi)
-    app.handle_incoming_msg(msg)
+    msg = facebooksms.Post(sender, to, text)
+    app.handle_incoming_post(msg)
 
 def fsapi(session, stream, env, args):
     #chat doesn't use message anyhow

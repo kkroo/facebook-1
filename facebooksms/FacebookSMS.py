@@ -18,8 +18,6 @@ class FacebookSMS:
   def _init_session_provider(self, provider_type):
       if provider_type == "test":
           return FacebookTestSession
-      if provider_type == "chat":
-          return FacebookChatSession
       if provider_type == "api":
           return FacebookAPIClient
       raise ValueError("No FB session provider of type '%s' exists." % provider_type)
@@ -50,21 +48,23 @@ class FacebookSMS:
       # should be fine.
       self.db.execute("CREATE TABLE IF NOT EXISTS %s " % self.conf.t_users + \
           "(number TEXT not NULL UNIQUE ON CONFLICT IGNORE, " + \
-          "email TEXT, password TEXT )" )
+          "email TEXT, registered INTEGER DEFAULT 0 )" )
       self.db.commit()
 
   def _cleanup(self):
     if not self.user is None:
       self.user.close_session()
 
-  def handle_incoming_msg(self, msg):
+  def handle_incoming_post(self, post):
     r = self.db.execute("SELECT number FROM %s " % (self.conf.t_users,) + \
-          "WHERE email = ? AND password IS NOT NULL LIMIT 1", (msg.recipient,))
+          "WHERE email = ? AND registered = 1 LIMIT 1", (post.recipient,))
 
     res = r.fetchall()
     if len(res) == 1:
-        m = Message(self.id_to_number(msg.sender.facebook_id), res[0][0], msg.sender.name, msg.body)
+        m = Message(self.id_to_number(post.sender.facebook_id), res[0][0], post.sender.name, post.body)
         self.send(m)
+    else:
+        self.log.error("Message delivery failed, unregistered user")
 
   def handle_incoming_sms(self, message):
     self.log.info("Incoming: %s" % message)
@@ -84,7 +84,8 @@ class FacebookSMS:
         self.log.debug("Failed to auth login for user %s" % message.sender)
         self.reply("Facebook SMS failed to authenticate. " + \
                    "Please re-send your credentials to %s." % self.conf.app_number)
-        self.user.set_auth() #reset credentials
+        self.user.set_email() #reset credentials
+        self.user.set_registered(False)
         return
     except Exception as e:
         self.reply("Facebook SMS service is currently unavailable. Please try again later.")
@@ -146,12 +147,13 @@ class FacebookSMS:
       return
 
     # state machine to collect user password
-    if not self.user.password and not self.collect_password():
+    password = self.collect_password()
+    if not password:
       return
 
     # check to make sure that the user is not registerd with API
     try:
-      self.user.fb.register(self.user.email, self.user.password)
+      self.user.fb.register(self.user.email, password)
     except AccountExistsError:
       self.reply("This FB account is already registered to another user")
       self.user.delete()
@@ -162,21 +164,21 @@ class FacebookSMS:
       self.user.delete()
       return
 
-    if self.user.is_active:
-      try:
-        self.user.start_session()
-        self.send_registered()
-        return
-      except AuthError:
-        self.log.debug("Auth failed for user %s with email %s" % (self.user.number, self.user.email))
-        self.reply("Authentication failed. Please enter your email address.")
-        self.user.set_auth() # reset registration to retry process
-        return
-      except Exception as e:
-        self.log.error("Error authenticating user with exception %s: %s" % (self.user.number, e))
-        self.reply("The FB service is currently unavailable, please try again later")
-        # self.user.delete() TODO do we want to delete on conn failure, or let next auth handle it?
-        return
+    try:
+      self.user.start_session()
+      self.user.set_registered(True)
+      self.send_registered()
+      return
+    except AuthError:
+      self.log.debug("Auth failed for user %s with email %s" % (self.user.number, self.user.email))
+      self.reply("Authentication failed. Please enter your email address.")
+      self.user.set_email() # reset registration to retry process
+      return
+    except Exception as e:
+      self.log.error("Error authenticating user with exception %s: %s" % (self.user.number, e))
+      self.reply("Could not complete the registration process. The FB service is currently unavailable, please try again later")
+      self.user.delete() # TODO do we want to delete on conn failure, or let next auth handle it?
+      return
 
   def send_registered(self):
     self.reply("Your account is now setup! " + \
@@ -197,13 +199,11 @@ class FacebookSMS:
 
   def collect_password(self):
     self.log.debug("Collecting password for user %s" % self.user.number)
-    if self.user.password is None:
-      password = self.msg.body # TODO Should we strip passwords?
-      if not len(password) > 3:
-        self.reply("Please enter a valid password.")
-        return False
-      return self.user.set_auth(email=self.user.email, password=password)
-    return True
+    password = self.msg.body # TODO Should we strip passwords?
+    if not len(password) > 3:
+      self.reply("Please enter a valid password.")
+      return False
+    return password
 
   def find_friend(self, query):
     matches = self.user.fb.find_friend(query)
@@ -236,7 +236,8 @@ class FacebookSMS:
         self.user.fb.post_message(post)
     except AuthError:
         self.reply("Message not delivered. Authentication failed. Please enter your email address.")
-        self.user.set_auth()
+        self.user.set_email()
+        self.user.set_registered(False)
     except Exception:
         self.reply("Message not delivered. Service unavaialabe. Please try again later")
 

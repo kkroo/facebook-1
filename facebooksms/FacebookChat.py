@@ -8,7 +8,10 @@ import requests
 import json
 from urlparse import parse_qs, urlparse
 
-
+""" NOTE: You can't use this with the base station client any more.
+          You must provide the login method with a password. Not
+          storing those on the base station for security reasons.
+"""
 class FacebookChatSession(FacebookSessionProvider):
   def __init__(self, app=None):
     self.profile = None
@@ -26,8 +29,6 @@ class FacebookChatSession(FacebookSessionProvider):
   def profile(self):
     return self.profile
 
-  def register(self, email, password):
-    pass
 
   def logout(self):
     self.xmpp.disconnect(wait = True)
