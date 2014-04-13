@@ -56,7 +56,7 @@ class login:
               web.log.error("Exception raised with login: %s, type=%s, file=%s, line=%s" % (e, exc_type, fname, exc_tb.tb_lineno))
               raise web.InternalError(str(e))
             web.log.info("Login succeeded for imsi: %s" % imsi)
-            raise web.Accepted(json.dumps(web.AccountManager[imsi].profile.__dict__))
+            raise web.Accepted(json.dumps(web.AccountManager.accounts[imsi].profile.__dict__))
         web.log.debug("Failed to login, missing args")
         raise web.BadRequest()
 
@@ -94,11 +94,11 @@ class unsubscribe:
         web.log.debug("Trying to unsubscribe: %s" % data)
         if all(i in data for i in needed_fields):
             imsi =  str(data.imsi)
-            result = web.db.select(self.web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
+            result = web.db.select(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
             if not (result and web.AccountManager.remove(imsi)):
                 web.log.info("Failed to unsubscribe imsi %s, doesn't exist" % imsi)
                 raise web.BadRequest()
-            web.log.info("Suceeded to unsubscribe imsi %" % imsi)
+            web.log.info("Suceeded to unsubscribe imsi %s" % imsi)
             raise web.Accepted()
         web.log.debug("Failed to unsubscribe, missing args")
         raise web.BadRequest()
@@ -173,22 +173,26 @@ class AccountManager:
   """
 
   """ Handle incoming chats """
-  def message_handler(self, msg):
-    if msg['type'] in ('normal', 'chat'):
-        sender_id = str(msg['from']).split('@')[0][1:]
-        body = msg['body']
-        email = '@'.join(str(msg['to']).split('@')[:2])
-        web.log.debug("Incoming message: from=%s, body=%s, to=%s" % (sender_id, body, email))
-        accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
-            where="email=$email AND active=$active " + \
-                  "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
-            vars={"email": email, "active": 1})
-        for account in accounts:
-          sender_name = self.accounts[imsi].xmpp.get_vcard(msg['from'])['vcard_temp']['FN']
-          web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
-              (sender_id, body, email, accounts.base_station))
-          r = requests.post(account.callback_url, \
-              {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
+  def create_message_handler(self, imsi):
+	def handler(msg):
+	    if msg['type'] in ('normal', 'chat'):
+		sender_id = str(msg['from']).split('@')[0][1:]
+		body = msg['body']
+		web.log.debug("Incoming message to_imsi=%s: from=%s, body=%s" % (imsi, sender_id, body))
+		accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
+		    where="active=$active AND imsi=$imsi " + \
+			  "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
+		    vars={"imsi": imsi, "active": 1})
+		account = accounts[0]
+		if account:
+		  vcard = self.accounts[account.imsi].xmpp.get_vcard(msg['from'])
+		  sender_name = vcard['vcard_temp']['FN']
+		      (sender_id, body, imsi, account.base_station)
+		  web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
+		      (sender_id, body, imsi, account.base_station))
+		  r = requests.post(account.callback_url, \
+		      {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
+	return handler
 
   """ Login to XMPP service. """
   def login(self, email, password, imsi):
@@ -197,7 +201,7 @@ class AccountManager:
 
     session = FacebookChatSession()
     session.login(email, password)
-    session.xmpp.add_message_handler(self.message_handler)
+    session.xmpp.add_message_handler(self.create_message_handler(imsi))
     self.accounts[imsi] = session
 
   """ Login all users in the event of a restart """
@@ -235,8 +239,9 @@ class AccountManager:
             where="imsi=$imsi AND active=$active", \
             vars={"imsi": imsi, "active": 1})
         try:
-           email = accounts[0].email
-           password = accounts[0].password
+	   account = accounts[0]
+           email = account.email
+           password = account.password
         except Exception:
            raise AuthError()
         self.login(email, password, imsi)
@@ -258,7 +263,8 @@ class AccountManager:
       self.accounts[imsi].logout()
       del self.accounts[imsi]
 
-    web.db.delete(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
+    return web.db.delete(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
+    
 
   def send_message(self, imsi, to, body):
       accounts = web.db.select(web.fb_config.t_users, \
@@ -287,7 +293,7 @@ if __name__ == "__main__":
 
     web.db = web.database(dbn='sqlite', db=web.fb_config.api_db_file)
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \
-             "(email TEXT not NULL, password TEXT, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
+             "(email TEXT not NULL, password TEXT not NULL, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_base_stations + \
              "(id TEXT not NULL UNIQUE, callback_url TEXT)")
 
