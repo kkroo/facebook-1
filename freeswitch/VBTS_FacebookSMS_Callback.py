@@ -21,18 +21,13 @@ class FreeSwitchSender(facebooksms.Sender):
 
 def chat(message, args):
     args = args.split('|')
-    if (len(args) < 5):
+    if (len(args) < 4):
         consoleLog('err', 'Missing Args\n')
         exit(1)
     imsi = args[0]
-    sender_id = args[2]
-    sender_name = args[3]
-    text = args[4]
-    if ((not to or to == '') or
-        (not fromm or fromm == '')):
-        consoleLog('err', 'Malformed Args\n')
-        exit(1)
-
+    sender_id = args[1]
+    sender_name = args[2]
+    text = args[3]
 
     facebooksms_log = logging.getLogger("facebooksms.callback")
     conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
@@ -45,9 +40,9 @@ def chat(message, args):
     fss = FreeSwitchSender(app)
     app.msg_sender = fss
 
-    sender = FacebookUser(sender_id, sender_name)
+    sender = facebooksms.FacebookUser(sender_id, sender_name)
     consoleLog('info', "Got '%s' from %s to %s\n" % (text, sender, imsi))
-    msg = facebooksms.Post(sender, to, imsi)
+    msg = facebooksms.Post(sender, imsi, text)
     app.handle_incoming_post(msg)
 
 def fsapi(session, stream, env, args):

@@ -87,7 +87,7 @@ class FacebookUser(object):
     self.name = name
 
   def __str__(self):
-    return '%s (#%d)' % (self.name, self.facebook_id)
+    return '%s (#%s)' % (self.name, self.facebook_id)
 
 class Post:
   def __init__(self, sender, recipient, body, post_id=None, timestamp=None):

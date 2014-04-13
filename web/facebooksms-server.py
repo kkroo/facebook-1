@@ -174,25 +174,24 @@ class AccountManager:
 
   """ Handle incoming chats """
   def create_message_handler(self, imsi):
-	def handler(msg):
-	    if msg['type'] in ('normal', 'chat'):
-		sender_id = str(msg['from']).split('@')[0][1:]
-		body = msg['body']
-		web.log.debug("Incoming message to_imsi=%s: from=%s, body=%s" % (imsi, sender_id, body))
-		accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
-		    where="active=$active AND imsi=$imsi " + \
-			  "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
-		    vars={"imsi": imsi, "active": 1})
-		account = accounts[0]
-		if account:
-		  vcard = self.accounts[account.imsi].xmpp.get_vcard(msg['from'])
-		  sender_name = vcard['vcard_temp']['FN']
-		      (sender_id, body, imsi, account.base_station)
-		  web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
-		      (sender_id, body, imsi, account.base_station))
-		  r = requests.post(account.callback_url, \
-		      {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
-	return handler
+    def handler(msg):
+      if msg['type'] in ('normal', 'chat'):
+        sender_id = str(msg['from']).split('@')[0][1:]
+        body = msg['body']
+        web.log.debug("Incoming message to_imsi=%s: from=%s, body=%s" % (imsi, sender_id, body))
+        accounts = web.db.select([web.fb_config.t_users, web.fb_config.t_base_stations], \
+            where="active=$active AND imsi=$imsi " + \
+              "AND %s.base_station = %s.id" % (web.fb_config.t_users, web.fb_config.t_base_stations), \
+            vars={"imsi": imsi, "active": 1})
+        account = accounts[0]
+        if account:
+          vcard = self.accounts[account.imsi].xmpp.get_vcard(msg['from'])
+          sender_name = vcard['vcard_temp']['FN']
+          web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
+              (sender_id, body, imsi, account.base_station))
+          r = requests.post(account.callback_url, \
+              {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
+    return handler
 
   """ Login to XMPP service. """
   def login(self, email, password, imsi):

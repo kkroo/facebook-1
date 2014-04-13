@@ -194,7 +194,7 @@ class FacebookSMS:
       if not re.match('^[_.0-9a-z-+]+@([0-9a-z][0-9a-z-]+.)+[a-z]{2,6}$', email):
           self.reply("Please enter a valid email address.")
           return False
-      return self.user.set_auth(email=email)
+      return self.user.set_email(email)
     return True
 
   def collect_password(self):
