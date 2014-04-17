@@ -1,9 +1,12 @@
+#
+# CONFIG FOR API CLIENT
+#
+
 #DB settings
 db_file:         '/etc/facebooksms/client.db'
 
 #DB Schema
 t_users:         'users'
-t_base_stations: 'basestations'
 
 #Log settings
 log_dir:        '/var/log/facebooksms'
@@ -19,22 +22,8 @@ sender_type:     'test'
 # Facebook session provider
 provider_type:   'api'
 
-
-
-
-#
-# CONFIG FOR API SERVER
-#
-
 # If using the API provider..
 api_url:         'API_URL_HERE'
 
 # API Key (get this by visiting ${api_url}/base_station?callback_url=${client_callback}
 api_key:         'API_KEY_HERE'
-
-# API DB file
-api_db_file:     '/etc/facebooksms/api.db'
-
-# SSL config
-api_ssl_cert:    '/etc/facebooksms/ssl_certificate'
-api_ssl_key:     '/etc/facebooksms/ssl_private_key'

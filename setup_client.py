@@ -7,10 +7,11 @@ setup(name="facebooksms",
       author_email="omar.ramadan@berkeley.edu",
       license='bsd',
       packages=['facebooksms'],
-      scripts=['facebooksms-interactive', 'web/facebooksms-server.py', 'web/facebooksms-client.py'],
+      scripts=['facebooksms-interactive', 'web/facebooksms-client.py'],
       data_files=[
                       ('/var/log/facebooksms', []),
-                      ('/etc/facebooksms/', ['conf/facebooksms.yaml']),
+                      ('/etc/facebooksms/', ['conf/client.yaml']),
+                      ('/etc/lighttpd/conf-enabled/', ['web/10-facebooksms-client-fastcgi.conf']),
                       ('/usr/local/freeswitch/scripts/', \
                           ['freeswitch/VBTS_FacebookSMS_Main.py', 'freeswitch/VBTS_FacebookSMS_Callback.py'])
                   ]

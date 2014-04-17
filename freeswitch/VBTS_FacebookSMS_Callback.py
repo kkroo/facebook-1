@@ -30,7 +30,7 @@ def chat(message, args):
     text = args[3]
 
     facebooksms_log = logging.getLogger("facebooksms.callback")
-    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
+    conf_file = open("/etc/facebooksms/client.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     conf = facebooksms.Config(config_dict, facebooksms_log)
     logging.basicConfig(filename="%s/callback.log" % conf.log_dir, level=conf.log_level)

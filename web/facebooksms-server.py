@@ -3,12 +3,13 @@ import threading
 import traceback
 import yaml
 import web, requests
-from web.wsgiserver import CherryPyWSGIServer
 import logging
 import uuid
 import json
 import sys, os
 from facebooksms import Post, FacebookChatSession, AuthError, Config
+from Crypto.Cipher import AES
+from Crypto import Random
 
 urls = ("/register", "register",
         "/unsubscribe", "unsubscribe",
@@ -241,8 +242,12 @@ class AccountManager:
 	   account = accounts[0]
            email = account.email
            password = account.password
+           iv = account.iv
         except Exception:
            raise AuthError()
+
+        aes = AES.new(web.fb_config.key, AES.MODE_CBC, iv)
+        password = aes.decrypt(password)
         self.login(email, password, imsi)
 
 
@@ -252,6 +257,12 @@ class AccountManager:
 
     if accounts or imsi in self.accounts:
         return False
+
+    rand = Random.new()
+    iv = rand.read(32)
+    aes = AES.new(web.fb_config.key, AES.MODE_CBC, iv)
+    password = aes.encrypt(password)
+
     self.remove(imsi)
     web.db.insert(web.fb_config.t_users, \
         email=email, password=password, imsi=imsi, base_station=base_station)
@@ -263,7 +274,7 @@ class AccountManager:
       del self.accounts[imsi]
 
     return web.db.delete(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
-    
+
 
   def send_message(self, imsi, to, body):
       accounts = web.db.select(web.fb_config.t_users, \
@@ -285,14 +296,14 @@ class AccountManager:
 if __name__ == "__main__":
     web.config.debug = True
     web.log = logging.getLogger("facebooksms.server")
-    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
+    conf_file = open("/etc/facebooksms/server.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     web.fb_config = Config(config_dict, web.log)
     logging.basicConfig(filename="%s/server.log" % web.fb_config.log_dir, level=web.fb_config.log_level)
 
-    web.db = web.database(dbn='sqlite', db=web.fb_config.api_db_file)
+    web.db = web.database(dbn='sqlite', db=web.fb_config.db_file)
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \
-             "(email TEXT not NULL, password TEXT not NULL, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
+             "(email TEXT not NULL, password TEXT not NULL, iv TEXT not NULL, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_base_stations + \
              "(id TEXT not NULL UNIQUE, callback_url TEXT)")
 
@@ -300,8 +311,6 @@ if __name__ == "__main__":
     web.AccountManager = AccountManager()
     web.AccountManager.start()
 
-    CherryPyWSGIServer.ssl_certificate = web.fb_config.api_ssl_cert
-    CherryPyWSGIServer.ssl_private_key = web.fb_config.api_ssl_key
     app = web.application(urls, locals())
     app.run()
     web.log.info("Terminating. Loging out of %d accounts." % len(web.AccountManager.accounts))

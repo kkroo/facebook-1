@@ -40,7 +40,7 @@ if __name__ == "__main__":
     web.config.debug = True
 
     web.log = logging.getLogger("facebooksms.client")
-    conf_file = open("/etc/facebooksms/facebooksms.yaml", "r")
+    conf_file = open("/etc/facebooksms/client.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
     web.fb_config = Config(config_dict, web.log )
     logging.basicConfig(filename="%s/client.log" % web.fb_config.log_dir, level=web.fb_config.log_level)

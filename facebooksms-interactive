@@ -21,8 +21,8 @@ parser.add_argument('--message', '-m', action='store', dest='message', \
     help="Body of incoming message.")
 
 parser.add_argument('--config', '-c', action='store', dest='config', \
-    help="Configuration file (default: ./conf/facebooksms.yaml)", \
-    default="./conf/facebooksms.yaml")
+    help="Configuration file (default: ./conf/client.yaml)", \
+    default="./conf/client.yaml")
 
 parser.add_argument('--log', '-l', action='store', dest='logfile', \
     help="log file (default: ./log/facebooksms.log)", \

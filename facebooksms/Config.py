@@ -72,10 +72,7 @@ class Config:
     return self.config_dict['api_db_file']
 
   @property
-  def api_ssl_cert(self):
-    return self.config_dict['api_ssl_cert']
+  def key(self):
+    return self.config_dict['key']
 
-  @property
-  def api_ssl_key(self):
-    return self.config_dict['api_ssl_key']
 
