@@ -56,10 +56,6 @@ class Config:
     return self.config_dict['provider_type']
 
   @property
-  def fetch_number(self):
-    return self.config_dict['fetch_number']
-
-  @property
   def api_key(self):
     return self.config_dict['api_key']
 
@@ -68,8 +64,16 @@ class Config:
     return self.config_dict['api_url']
 
   @property
-  def api_db_file(self):
-    return self.config_dict['api_db_file']
+  def callback_protocol(self):
+    return self.config_dict['callback_protocol']
+
+  @property
+  def callback_port(self):
+    return self.config_dict['callback_port']
+
+  @property
+  def callback_path(self):
+    return self.config_dict['callback_path']
 
   @property
   def key(self):

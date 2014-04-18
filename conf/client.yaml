@@ -26,4 +26,10 @@ provider_type:   'api'
 api_url:         'API_URL_HERE'
 
 # API Key (get this by visiting ${api_url}/base_station?callback_url=${client_callback}
-api_key:         'API_KEY_HERE'
+api_key:         ''
+
+# Callback settings
+callback_protocol: 'http'
+callback_port:      '80'
+callback_path:      '/callback'
+

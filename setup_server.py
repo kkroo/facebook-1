@@ -7,6 +7,15 @@ setup(name="facebooksms",
       author_email="omar.ramadan@berkeley.edu",
       license='bsd',
       packages=['facebooksms'],
+      install_requires=[
+          'requests',
+          'web.py',
+          'pyyaml',
+          'lxml',
+          'cssselect',
+          'Crypto'
+      ],
+      dependency_links=['http://github.com/kkroo/SleekXMPP/tarball/master'],
       scripts=['facebooksms-interactive', 'web/facebooksms-server.py'],
       data_files=[
                       ('/var/log/facebooksms', []),

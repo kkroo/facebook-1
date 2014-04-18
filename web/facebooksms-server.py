@@ -239,7 +239,7 @@ class AccountManager:
             where="imsi=$imsi AND active=$active", \
             vars={"imsi": imsi, "active": 1})
         try:
-	   account = accounts[0]
+           account = accounts[0]
            email = account.email
            password = account.password
            iv = account.iv
@@ -259,7 +259,7 @@ class AccountManager:
         return False
 
     rand = Random.new()
-    iv = rand.read(32)
+    iv = rand.read(16)
     aes = AES.new(web.fb_config.key, AES.MODE_CBC, iv)
     password = aes.encrypt(password)
 

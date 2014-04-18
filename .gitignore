@@ -3,3 +3,5 @@ build/
 *.pyc
 *.sqlite3
 *.log
+deb_dist
+facebooksms.egg-info

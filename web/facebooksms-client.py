@@ -5,10 +5,9 @@ import logging, yaml
 import web, requests
 import syslog
 from vbts_interconnects import vbts_util
+import re
 from facebooksms import Config
 from ESL import *
-
-urls = ("/callback", "callback")
 
 class callback:
     def POST(self):
@@ -45,9 +44,19 @@ if __name__ == "__main__":
     web.fb_config = Config(config_dict, web.log )
     logging.basicConfig(filename="%s/client.log" % web.fb_config.log_dir, level=web.fb_config.log_level)
 
+    if len(web.fb_config.api_key) == 0:
+      r = requests.get("http://checkip.dyndns.org/")
+      ip = re.findall('\d{2,3}.\d{2,3}.\d{2,3}.\d{2,3}', r.text)[0]
+      callback_url = "%s://%s:%s%s" % (web.fb_config.callback_protocol, ip, web.fb_config.callback_port, web.fb_config.callback_path)
+      r = requests.get("%s/base_station" % web.fb_config.api_url, params={'callback_url': callback_url}, verify=False)
+      config_dict['api_key'] = r.text.encode('ascii', 'ignore')
+      web.fb_config = Config(config_dict, web.log )
+      conf_file = open("/etc/facebooksms/client.yaml", "w")
+      yaml.dump(config_dict, conf_file)
+
 
     web.log.info("Starting up client.")
-    app = web.application(urls, locals())
+    app = web.application((web.fb_config.callback_path, "callback"), locals())
     app.run()
     web.log.info("Terminating client.")
 
