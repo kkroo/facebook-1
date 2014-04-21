@@ -5,9 +5,6 @@ import json
 
 
 class FacebookAPIClient(FacebookSessionProvider):
-  error_codes = { 0: "Auth Error", 1: "Server Error" }
-  status_codes = {}
-
   def __init__(self, app):
     self.app = app
     self.profile = None

@@ -49,6 +49,9 @@ if __name__ == "__main__":
       ip = re.findall('\d{2,3}.\d{2,3}.\d{2,3}.\d{2,3}', r.text)[0]
       callback_url = "%s://%s:%s%s" % (web.fb_config.callback_protocol, ip, web.fb_config.callback_port, web.fb_config.callback_path)
       r = requests.get("%s/base_station" % web.fb_config.api_url, params={'callback_url': callback_url}, verify=False)
+      if r.status_code != 202:
+        web.log.error("Couldn't get API key status %s" % r.status_code )
+        raise Exception("Couldn't get API key status %s" % r.status_code )
       config_dict['api_key'] = r.text.encode('ascii', 'ignore')
       web.fb_config = Config(config_dict, web.log )
       conf_file = open("/etc/facebooksms/client.yaml", "w")
