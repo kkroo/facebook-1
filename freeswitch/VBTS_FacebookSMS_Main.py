@@ -59,7 +59,7 @@ def fsapi(session, stream, env, args):
 """
     <extension name="facebooksms">
       <condition field="vbts_tp_dest_address" expression="^999\d+$">
-        <action application="python" data="VBTS_FacebookSMS_Main ${from_user}|${vbts_tp_dest_address}|${openbts_callerid}|${vbts_text}"/>
+        <action application="python" data="VBTS_FacebookSMS_Main ${from_user}|${vbts_tp_dest_address}|${vbts_callerid}|${vbts_text}"/>
         <action application="set" data="response_text=${_openbts_ret}" />
       </condition>
     </extension>

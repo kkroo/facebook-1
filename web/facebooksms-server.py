@@ -10,6 +10,7 @@ import sys, os
 from facebooksms import Post, FacebookChatSession, AuthError, Config
 from Crypto.Cipher import AES
 from Crypto import Random
+import base64
 
 urls = ("/register", "register",
         "/unsubscribe", "unsubscribe",
@@ -242,12 +243,14 @@ class AccountManager:
            account = accounts[0]
            email = account.email
            password = account.password
-           iv = account.iv
+           iv = base64.b64decode(account.iv)
         except Exception:
            raise AuthError()
 
         aes = AES.new(web.fb_config.key, AES.MODE_CBC, iv)
-        password = aes.decrypt(password)
+        PADDING = chr(0)
+        password = aes.decrypt(base64.b64decode(password)).rstrip(PADDING)
+
         self.login(email, password, imsi)
 
 
@@ -261,11 +264,15 @@ class AccountManager:
     rand = Random.new()
     iv = rand.read(16)
     aes = AES.new(web.fb_config.key, AES.MODE_CBC, iv)
-    password = aes.encrypt(password)
+    BLOCK_SIZE = 32
+    PADDING = chr(0)
+    password = password + (BLOCK_SIZE - len(password) % BLOCK_SIZE) * PADDING
+    password = base64.b64encode(aes.encrypt(password))
+    iv = base64.b64encode(iv)
 
     self.remove(imsi)
     web.db.insert(web.fb_config.t_users, \
-        email=email, password=password, imsi=imsi, base_station=base_station)
+        email=email, password=password, imsi=imsi, iv=iv, base_station=base_station)
     return True
 
   def remove(self, imsi):
