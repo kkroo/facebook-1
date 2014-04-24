@@ -3,15 +3,15 @@
 #
 
 #Log settings
-log_dir:        '/var/log/facebooksms'
-log_level:      'DEBUG'
+log_dir:         '/var/log/facebooksms'
+log_level:       'DEBUG'
 
 # DB Schema
 t_base_stations: 'basestations'
 t_users:         'users'
 
 # API DB file
-db_file:     '/etc/facebooksms/api.db'
+db_file:         '/etc/facebooksms/api.db'
 
 # AES key 32 bytes
 key:             'ADD_SECURE_KEY_HERE'

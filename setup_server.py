@@ -6,7 +6,7 @@ setup(name="facebooksms",
       author="Omar Ramadan",
       author_email="omar.ramadan@berkeley.edu",
       license='bsd',
-      packages=['facebooksms'],
+      packages=['facebooksms-server'],
       install_requires=[
           'requests',
           'web.py',

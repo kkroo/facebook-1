@@ -6,7 +6,7 @@ setup(name="facebooksms",
       author="Omar Ramadan",
       author_email="omar.ramadan@berkeley.edu",
       license='bsd',
-      packages=['facebooksms'],
+      packages=['facebooksms-client'],
       install_requires=[
           'requests',
           'web.py',
@@ -21,6 +21,7 @@ setup(name="facebooksms",
                       ('/var/log/facebooksms', []),
                       ('/etc/facebooksms/', ['conf/client.yaml']),
                       ('/etc/lighttpd/conf-enabled/', ['web/10-facebooksms-client-fastcgi.conf']),
+                      ('/etc/freeswitch/chatplan/defaults/', ['freeswitch/91_route_facebook.xml']),
                       ('/usr/share/freeswitch/scripts/', \
                           ['freeswitch/VBTS_FacebookSMS_Main.py', 'freeswitch/VBTS_FacebookSMS_Callback.py'])
                   ]

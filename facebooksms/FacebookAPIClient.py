@@ -14,9 +14,10 @@ class FacebookAPIClient(FacebookSessionProvider):
   def api_request(self, module, params):
     try:
         params['imsi'] = self.app.msg.imsi
+        params['base_station'] = self.app.conf.api_key
         request_url = "%s/%s" % (self.app.conf.api_url, module)
         self.app.log.debug("Making request to %s with args %s" % (request_url, params))
-        r = requests.post(request_url, data=params, verify=False)
+        r = requests.post(request_url, data=params, verify=False) # XXX THIS IS INSECURE!!!
     except Exception as e:
         self.app.log.error("FB Api client connection error %s" % e)
         raise ConnectionError()
@@ -42,7 +43,7 @@ class FacebookAPIClient(FacebookSessionProvider):
 
   def register(self, email, password):
      r = self.api_request("register", \
-         {"email": email, "password": password, "base_station": self.app.conf.api_key})
+         {"email": email, "password": password})
      if r.status_code == 403:
         self.app.log.debug("FB api client account exists already %s" % email)
         raise AccountExistsError()

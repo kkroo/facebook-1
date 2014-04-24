@@ -3,33 +3,33 @@
 #
 
 #DB settings
-db_file:         '/etc/facebooksms/client.db'
+db_file:          '/etc/facebooksms/client.db'
 
 #DB Schema
-t_users:         'users'
+t_users:          'users'
 
 #Log settings
-log_dir:        '/var/log/facebooksms'
-log_level:      'DEBUG'
+log_dir:          '/var/log/facebooksms'
+log_level:        'DEBUG'
 
 #App settings
-app_number:      9999
-number_prefix:   999
+app_number:       9999
+number_prefix:    999
 
 # Sender settings
-sender_type:     'test'
+sender_type:      'test'
 
 # Facebook session provider
-provider_type:   'api'
+provider_type:     'api'
 
 # If using the API provider..
-api_url:         'API_URL_HERE'
+api_url:           'API_URL_HERE'
 
 # API Key (get this by visiting ${api_url}/base_station?callback_url=${client_callback}
-api_key:         ''
+api_key:           ''
 
 # Callback settings
 callback_protocol: 'http'
-callback_port:      '80'
-callback_path:      '/callback'
+callback_port:     '80'
+callback_path:     '/callback'
 

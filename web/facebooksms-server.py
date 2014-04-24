@@ -40,9 +40,16 @@ class login:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi"]
+        needed_fields = ["imsi", "base_station"]
         if all(i in data for i in needed_fields):
+            base_station = str(data.base_station)
             imsi =  str(data.imsi)
+            result = web.db.select(web.fb_config.t_base_stations, \
+                where="id=$id", vars={'id': base_station})
+            if not result:
+                web.log.info("Unauthorized basestation %s" % \
+                              ( base_station))
+                raise web.Forbidden()
             web.log.debug("Request to login: %s" % data)
             try:
                 web.db.update(web.fb_config.t_users, where="imsi=$imsi", \
@@ -75,8 +82,13 @@ class register:
             password =  str(data.password)
             imsi =  str(data.imsi)
             base_station = str(data.base_station)
-            result = web.db.select(web.fb_config.t_base_stations, where="id=$id", vars={'id': base_station})
-            if not (result and web.AccountManager.add(email, password, imsi, base_station)):
+            result = web.db.select(web.fb_config.t_base_stations, \
+                where="id=$id", vars={'id': base_station})
+            if not result:
+                web.log.info("Unauthorized basestation %s" % \
+                              ( base_station))
+                raise web.Forbidden()
+            if not web.AccountManager.add(email, password, imsi, base_station):
                 web.log.info("Registration failed for imsi %s with %s on basestation %s" % \
                               ( imsi, email, base_station))
                 raise web.Forbidden()
@@ -92,10 +104,18 @@ class unsubscribe:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi"]
+        needed_fields = ["imsi", "base_station"]
         web.log.debug("Trying to unsubscribe: %s" % data)
         if all(i in data for i in needed_fields):
+            base_station = str(data.base_station)
             imsi =  str(data.imsi)
+            result = web.db.select(web.fb_config.t_base_stations, \
+                where="id=$id", vars={'id': base_station})
+            if not result:
+                web.log.info("Unauthorized basestation %s" % \
+                              ( base_station))
+                raise web.Forbidden()
+
             result = web.db.select(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
             if not (result and web.AccountManager.remove(imsi)):
                 web.log.info("Failed to unsubscribe imsi %s, doesn't exist" % imsi)
@@ -111,11 +131,19 @@ class find_friend:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi", "query"]
+        needed_fields = ["imsi", "query", "base_station"]
         web.log.debug("Trying to find_friend %s" % data)
         if all(i in data for i in needed_fields):
+            base_station = str(data.base_station)
             query = str(data.query)
             imsi = str(data.imsi)
+            result = web.db.select(web.fb_config.t_base_stations, \
+                where="id=$id", vars={'id': base_station})
+            if not result:
+                web.log.info("Unauthorized basestation %s" % \
+                              ( base_station))
+                raise web.Forbidden()
+
             try:
                 result = web.AccountManager.find_friend(imsi, query)
             except AuthError:
@@ -140,12 +168,20 @@ class send_message:
 
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi", "to", "body"]
+        needed_fields = ["imsi", "base_station", "to", "body"]
         web.log.debug("Trying to send_message %s" % data)
         if all(i in data for i in needed_fields):
+            base_station = str(data.base_station)
             to = str(data.to)
             body = str(data.body)
             imsi = str(data.imsi)
+            result = web.db.select(web.fb_config.t_base_stations, \
+                where="id=$id", vars={'id': base_station})
+            if not result:
+                web.log.info("Unauthorized basestation %s" % \
+                              ( base_station))
+                raise web.Forbidden()
+
             try:
                 web.AccountManager.send_message(imsi, to, body)
             except AuthError:
