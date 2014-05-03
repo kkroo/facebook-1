@@ -10,6 +10,10 @@ import sys, os
 from facebooksms import Post, FacebookChatSession, AuthError, Config
 from Crypto.Cipher import AES
 from Crypto import Random
+from Crypto.Hash import SHA
+from Crypto.Signature import PKCS1_PSS
+from Crypto.PublicKey import RSA
+from Crypto.Util.asn1 import DerSequence
 import base64
 
 urls = ("/register", "register",
@@ -20,195 +24,199 @@ urls = ("/register", "register",
         "/find_friend",  "find_friend")
 
 class base_station:
-    def GET(self):
+    def POST(self):
         data = web.input()
-        needed_fields = ["callback_url"]
+        needed_fields = ["callback_url", "cert"]
         web.log.debug("Request to register base station: %s" % data)
         if all(i in data for i in needed_fields):
             callback_url = str(data.callback_url)
+            cert = str(data.cert)
             guid = uuid.uuid4()
-            web.db.insert(web.fb_config.t_base_stations, id=str(guid), callback_url=callback_url)
+            web.db.insert(web.fb_config.t_base_stations, id=str(guid), callback_url=callback_url, cert=cert)
             web.log.info("Registered base station: guid=%s, callback_url=%s" % (guid, callback_url))
             raise web.Accepted(str(guid))
         web.log.debug("Failed to register base station, missing args")
         raise web.BadRequest()
 
-
-class login:
-    def __init__(self):
-        pass
-
+class api_request:
     def POST(self):
-        data = web.input()
-        needed_fields = ["imsi", "base_station"]
+      raise NotImplementedError
+
+    def verify(self, data, fields=list()):
+        needed_fields = ["imsi", "base_station", "mac"] + fields
         if all(i in data for i in needed_fields):
             base_station = str(data.base_station)
             imsi =  str(data.imsi)
-            result = web.db.select(web.fb_config.t_base_stations, \
+            mac = str(base64.b64decode(data.mac))
+            results = web.db.select(web.fb_config.t_base_stations, \
                 where="id=$id", vars={'id': base_station})
-            if not result:
+            try:
+                result = results[0]
+            except Exception:
                 web.log.info("Unauthorized basestation %s" % \
                               ( base_station))
                 raise web.Forbidden()
-            web.log.debug("Request to login: %s" % data)
-            try:
-                web.db.update(web.fb_config.t_users, where="imsi=$imsi", \
-                    vars={"imsi" : imsi}, active=1)
-                web.AccountManager.auth(imsi)
-            except AuthError:
-              web.log.info("Login failed for imsi: %s" % imsi)
-              web.AccountManager.remove(imsi)
-              raise web.Unauthorized()
-            except Exception as e:
-              exc_type, exc_obj, exc_tb = sys.exc_info()
-              fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-              web.log.error("Exception raised with login: %s, type=%s, file=%s, line=%s" % (e, exc_type, fname, exc_tb.tb_lineno))
-              raise web.InternalError(str(e))
-            web.log.info("Login succeeded for imsi: %s" % imsi)
-            raise web.Accepted(json.dumps(web.AccountManager.accounts[imsi].profile.__dict__))
-        web.log.debug("Failed to login, missing args")
-        raise web.BadRequest()
 
-class register:
-    def __init__(self):
-        pass
+            #Verify MAC
+            params = dict(data)
+            del params['mac']
+            self._verify_signature(params, mac, result.cert)
+        else:
+          web.log.debug("Failed request, missing args")
+          raise web.BadRequest()
 
+    def _verify_signature(self, data, mac, cert):
+        self._verify_cert(cert)
+        key = self._cert_to_key(cert)
+        h = SHA.new()
+        for k,v in sorted(params.items(), key=lambda x: x[0]):
+          h.update("%s=%s" % (k, v))
+        verifier = PKCS1_PSS.new(key)
+        if not verifier.verify(h, mac):
+          raise web.Forbidden()
+
+    def _verify_cert(self, cert):
+        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path, "-crl_check_all"], \
+                   stdin = PIPE, stdout = PIPE, stderr = PIPE)
+
+        message, error = p1.communicate(cert)
+        if p1.returncode != 0:
+          raise web.Forbidden()
+
+    def _cert_to_key(self, cert):
+        # Convert from PEM to DER
+        lines = cert.replace(" ",'').split()
+        der = base64.b64decode(''.join(lines[1:-1]))
+
+        # Extract subjectPublicKeyInfo field from X.509 certificate (see RFC3280)
+        cert = DerSequence()
+        cert.decode(der)
+        tbsCertificate = DerSequence()
+        tbsCertificate.decode(cert[0])
+        subjectPublicKeyInfo = tbsCertificate[6]
+
+        # Initialize RSA key
+        return RSA.importKey(subjectPublicKeyInfo)
+
+
+class login(api_request):
     def POST(self):
         data = web.input()
-        needed_fields = ["email", "password", "imsi", "base_station"]
+        self.verify(data)
+        imsi =  str(data.imsi)
+        web.log.debug("Request to login: %s" % data)
+        try:
+            web.db.update(web.fb_config.t_users, where="imsi=$imsi", \
+                vars={"imsi" : imsi}, active=1)
+            web.AccountManager.auth(imsi)
+        except AuthError:
+          web.log.info("Login failed for imsi: %s" % imsi)
+          web.AccountManager.remove(imsi)
+          raise web.Unauthorized()
+        except Exception as e:
+          exc_type, exc_obj, exc_tb = sys.exc_info()
+          fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+          web.log.error("Exception raised with login: %s, type=%s, file=%s, line=%s" % (e, exc_type, fname, exc_tb.tb_lineno))
+          raise web.InternalError(str(e))
+        web.log.info("Login succeeded for imsi: %s" % imsi)
+        raise web.Accepted(json.dumps(web.AccountManager.accounts[imsi].profile.__dict__))
+
+class register(api_request):
+    def POST(self):
+        data = web.input()
         web.log.debug("Trying to register %s" % data)
-        if all(i in data for i in needed_fields):
-            email = str(data.email)
-            password =  str(data.password)
-            imsi =  str(data.imsi)
-            base_station = str(data.base_station)
-            result = web.db.select(web.fb_config.t_base_stations, \
-                where="id=$id", vars={'id': base_station})
-            if not result:
-                web.log.info("Unauthorized basestation %s" % \
-                              ( base_station))
-                raise web.Forbidden()
-            if not web.AccountManager.add(email, password, imsi, base_station):
-                web.log.info("Registration failed for imsi %s with %s on basestation %s" % \
-                              ( imsi, email, base_station))
-                raise web.Forbidden()
-            web.log.info("Registration suceeded for imsi %s with %s on basestation %s" % \
-                              ( imsi, email, base_station))
-            raise web.Accepted()
-        web.log.debug("Failed to login, missing args")
-        raise web.BadRequest()
+        self.verify(data, fields=["email", "password"])
+        email = str(data.email)
+        password =  str(data.password)
+        imsi =  str(data.imsi)
+        if not web.AccountManager.add(email, password, imsi, base_station):
+            web.log.info("Registration failed for imsi %s with %s on basestation %s" % \
+                          ( imsi, email, base_station))
+            raise web.Forbidden()
+        web.log.info("Registration suceeded for imsi %s with %s on basestation %s" % \
+                          ( imsi, email, base_station))
+        raise web.Accepted()
 
-class unsubscribe:
-    def __init__(self):
-        pass
 
+class unsubscribe(api_request):
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi", "base_station"]
         web.log.debug("Trying to unsubscribe: %s" % data)
-        if all(i in data for i in needed_fields):
-            base_station = str(data.base_station)
-            imsi =  str(data.imsi)
-            result = web.db.select(web.fb_config.t_base_stations, \
-                where="id=$id", vars={'id': base_station})
-            if not result:
-                web.log.info("Unauthorized basestation %s" % \
-                              ( base_station))
-                raise web.Forbidden()
+        self.verify(data, fields=["imsi", "base_station"])
+        result = web.db.select(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
+        if not (result and web.AccountManager.remove(imsi)):
+            web.log.info("Failed to unsubscribe imsi %s, doesn't exist" % imsi)
+            raise web.BadRequest()
+        web.log.info("Suceeded to unsubscribe imsi %s" % imsi)
+        raise web.Accepted()
 
-            result = web.db.select(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
-            if not (result and web.AccountManager.remove(imsi)):
-                web.log.info("Failed to unsubscribe imsi %s, doesn't exist" % imsi)
-                raise web.BadRequest()
-            web.log.info("Suceeded to unsubscribe imsi %s" % imsi)
-            raise web.Accepted()
-        web.log.debug("Failed to unsubscribe, missing args")
-        raise web.BadRequest()
-
-class find_friend:
-    def __init__(self):
-      pass
-
+class find_friend(api_request):
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi", "query", "base_station"]
         web.log.debug("Trying to find_friend %s" % data)
-        if all(i in data for i in needed_fields):
-            base_station = str(data.base_station)
-            query = str(data.query)
-            imsi = str(data.imsi)
-            result = web.db.select(web.fb_config.t_base_stations, \
-                where="id=$id", vars={'id': base_station})
-            if not result:
-                web.log.info("Unauthorized basestation %s" % \
-                              ( base_station))
-                raise web.Forbidden()
+        self.verify(data, fields=["query"])
+        query = str(data.query)
+        imsi = str(data.imsi)
 
-            try:
-                result = web.AccountManager.find_friend(imsi, query)
-            except AuthError:
-                web.log.info("Failed to find_friend for %s, auth failed" % imsi)
-                web.AccountManager.remove(imsi)
-                raise web.Unauthorized()
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                web.log.error("Exception raised with find_friend: %s, type=%s, file=%s, line=%s" % \
-                    (e, exc_type, fname, exc_tb.tb_lineno))
-                raise web.InternalError(str(e))
-            web.log.info("Success with find_friend, imsi=%s, query=%s, num_results=%d" % \
-                    (imsi, query, len(result)))
-            raise web.Accepted(json.dumps(result))
+        try:
+            result = web.AccountManager.find_friend(imsi, query)
+        except AuthError:
+            web.log.info("Failed to find_friend for %s, auth failed" % imsi)
+            web.AccountManager.remove(imsi)
+            raise web.Unauthorized()
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            web.log.error("Exception raised with find_friend: %s, type=%s, file=%s, line=%s" % \
+                (e, exc_type, fname, exc_tb.tb_lineno))
+            raise web.InternalError(str(e))
+        web.log.info("Success with find_friend, imsi=%s, query=%s, num_results=%d" % \
+                (imsi, query, len(result)))
+        raise web.Accepted(json.dumps(result))
 
-        raise web.BadRequest()
-
-class send_message:
-    def __init__(self):
-      pass
-
+class send_message(api_request):
     def POST(self):
         data = web.input()
-        needed_fields = ["imsi", "base_station", "to", "body"]
         web.log.debug("Trying to send_message %s" % data)
-        if all(i in data for i in needed_fields):
-            base_station = str(data.base_station)
-            to = str(data.to)
-            body = str(data.body)
-            imsi = str(data.imsi)
-            result = web.db.select(web.fb_config.t_base_stations, \
-                where="id=$id", vars={'id': base_station})
-            if not result:
-                web.log.info("Unauthorized basestation %s" % \
-                              ( base_station))
-                raise web.Forbidden()
+        self.verify(data, fields=["to", "body"])
+        to = str(data.to)
+        body = str(data.body)
+        imsi = str(data.imsi)
 
-            try:
-                web.AccountManager.send_message(imsi, to, body)
-            except AuthError:
-                web.log.info("Failed to send_message for %s, auth failed" % imsi)
-                web.AccountManager.remove(imsi)
-                raise web.Unauthorized()
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                web.log.error("Exception raised with find_friend: %s, type=%s, file=%s, line=%s" % \
-                    (e, exc_type, fname, exc_tb.tb_lineno))
-                raise web.InternalError(str(e))
-            web.log.info("Success with send_message, imsi=%s, to=%s, msg=%s" % \
-                    (imsi, to, body))
-            raise web.Accepted()
-
-        raise web.BadRequest()
+        try:
+            web.AccountManager.send_message(imsi, to, body)
+        except AuthError:
+            web.log.info("Failed to send_message for %s, auth failed" % imsi)
+            web.AccountManager.remove(imsi)
+            raise web.Unauthorized()
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            web.log.error("Exception raised with find_friend: %s, type=%s, file=%s, line=%s" % \
+                (e, exc_type, fname, exc_tb.tb_lineno))
+            raise web.InternalError(str(e))
+        web.log.info("Success with send_message, imsi=%s, to=%s, msg=%s" % \
+                (imsi, to, body))
+        raise web.Accepted()
 
 
 class AccountManager:
 
   def __init__(self):
     self.accounts = threading.local().__dict__
+    key_file = open(self.app.config.key_file, 'r')
+    self.key = RSA.importKey(key_file.read())
 
   """
   Private methods
   """
+
+  def _compute_mac(self, params):
+    h = SHA.new()
+    for k,v in sorted(params.items(), key=lambda x: x[0]):
+      h.update("%s=%s" % (k, v))
+    signer = PKCS1_PSS.new(self.key)
+    return base64.b64encode(signer.sign(h))
 
   """ Handle incoming chats """
   def create_message_handler(self, imsi):
@@ -227,8 +235,10 @@ class AccountManager:
           sender_name = vcard['vcard_temp']['FN']
           web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
               (sender_id, body, imsi, account.base_station))
-          r = requests.post(account.callback_url, \
-              {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body})
+          params = {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body}
+          mac = self._compute_mac(params)
+          params['mac'] = mac
+          r = requests.post(account.callback_url, params)
     return handler
 
   """ Login to XMPP service. """
@@ -348,7 +358,7 @@ if __name__ == "__main__":
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_users  + \
              "(email TEXT not NULL, password TEXT not NULL, iv TEXT not NULL, imsi TEXT not NULL UNIQUE, base_station TEXT not NULL, active INTEGER DEFAULT 0 )")
     web.db.query("CREATE TABLE IF NOT EXISTS %s " % web.fb_config.t_base_stations + \
-             "(id TEXT not NULL UNIQUE, callback_url TEXT)")
+             "(id TEXT not NULL UNIQUE, callback_url TEXT, cert TEXT)")
 
 
     web.AccountManager = AccountManager()

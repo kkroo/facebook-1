@@ -76,6 +76,22 @@ class Config:
     return self.config_dict['callback_path']
 
   @property
+  def ca_path(self):
+    return self.config_dict['ca_path']
+
+  @property
+  def cert_file(self):
+    return self.config_dict['cert_file']
+
+  @property
+  def api_cert_file(self):
+    return self.config_dict['cert_file']
+
+  @property
+  def key_file(self):
+    return self.config_dict['key_file']
+
+  @property
   def key(self):
     return self.config_dict['key']
 

@@ -2,6 +2,10 @@ from facebooksms import *
 import requests
 import datetime
 import json
+from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA
+from Crypto.Signature import PKCS1_PSS
+import base64
 
 
 class FacebookAPIClient(FacebookSessionProvider):
@@ -11,12 +15,24 @@ class FacebookAPIClient(FacebookSessionProvider):
     self.email = None
     self.auth_ok = None
 
+    key_file = open(self.app.conf.key_file, 'r')
+    self.key = RSA.importKey(key_file.read())
+
+  def _compute_mac(self, params):
+    h = SHA.new()
+    for k,v in sorted(params.items(), key=lambda x: x[0]):
+      h.update("%s=%s" % (k, v))
+    signer = PKCS1_PSS.new(self.key)
+    return base64.b64encode(signer.sign(h))
+
   def api_request(self, module, params):
     try:
         params['imsi'] = self.app.msg.imsi
         params['base_station'] = self.app.conf.api_key
+        params['mac'] = self._compute_mac(params)
         request_url = "%s/%s" % (self.app.conf.api_url, module)
         self.app.log.debug("Making request to %s with args %s" % (request_url, params))
+        print "%s?%s" % (request_url, "&".join(["%s=%s" % (k,v) for k,v in params.items()]))
         r = requests.post(request_url, data=params, verify=False) # XXX THIS IS INSECURE!!!
     except Exception as e:
         self.app.log.error("FB Api client connection error %s" % e)

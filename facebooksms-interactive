@@ -42,8 +42,8 @@ logging.basicConfig(filename="%s/main.log" % conf.log_dir, level=conf.log_level)
 if not args.imsi and not args.sender and not args.recipient and not args.message:
   log.error("IMSI, Sender, recipient, and message args must be set for send mode")
 else:
-  app = facebooksms.FacebookSMS(args.imsi, conf)
-  msg = facebooksms.Message(args.sender, args.recipient, None, args.message)
+  app = facebooksms.FacebookSMS(conf)
+  msg = facebooksms.Message(args.sender, args.recipient, None, args.message, args.imsi)
   try:
     app.handle_incoming_sms(msg)
   except Exception:

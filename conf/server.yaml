@@ -13,5 +13,11 @@ t_users:         'users'
 # API DB file
 db_file:         '/etc/facebooksms/api.db'
 
+# Private key for API server. The cert for this lives on the basestation
+key_file:          '/etc/facebooksms/api.pem'
+
+# Path to CA cert
+ca_path:           '/etc/facebooksms/ca'
+
 # AES key 32 bytes
 key:             'ADD_SECURE_KEY_HERE'

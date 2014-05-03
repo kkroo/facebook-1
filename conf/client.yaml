@@ -22,6 +22,16 @@ sender_type:      'test'
 # Facebook session provider
 provider_type:     'api'
 
+# The basestation key and signed cert
+key_file:          '/etc/facebooksms/client.pem'
+cert_file:         '/etc/facebooksms/client.cert'
+
+# The API server signed cert
+api_cert_file:     '/etc/facebooksms/api.cert'
+
+# Path to CA cert
+ca_path:           '/etc/facebooksms/ca'
+
 # If using the API provider..
 api_url:           'API_URL_HERE'
 

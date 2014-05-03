@@ -1,6 +1,8 @@
 import time, datetime
 import re
+import requests
 from facebooksms import *
+import yaml
 
 class FacebookSMS:
   def __init__(self, conf):
@@ -13,7 +15,23 @@ class FacebookSMS:
     self.msg_sender = self._init_sender(self.conf.sender_type)
     self._init_db()
     self.log = self.conf.log
+    self._init_api()
     self.log.debug("Init done.")
+
+  def _init_api(self):
+    if len(self.conf.api_key) == 0:
+      r = requests.get("http://checkip.dyndns.org/")
+      ip = re.findall('\d{2,3}.\d{2,3}.\d{2,3}.\d{2,3}', r.text)[0]
+      callback_url = "%s://%s:%s%s" % (self.conf.callback_protocol, ip, self.conf.callback_port, self.conf.callback_path)
+      cert = open(self.conf.cert_file).read()
+      r = requests.post("%s/base_station" % self.conf.api_url, params={'callback_url': callback_url, 'cert': cert}, verify=False)
+      if r.status_code != 202:
+        self.log.error("Couldn't get API key status %s" % r.status_code )
+        raise Exception("Couldn't get API key status %s:\n%s" % r.status_code )
+      self.conf.config_dict['api_key'] = r.text.encode('ascii', 'ignore')
+      conf_file = open("/etc/facebooksms/client.yaml", "w")
+      yaml.dump(self.conf.config_dict, conf_file)
+
 
   def _init_session_provider(self, provider_type):
       if provider_type == "test":
