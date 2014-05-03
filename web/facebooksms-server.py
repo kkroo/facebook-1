@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import threading
+from subprocess import Popen, PIPE
 import traceback
 import yaml
 import web, requests
@@ -39,6 +40,10 @@ class base_station:
         raise web.BadRequest()
 
 class api_request:
+
+    def GET(self):
+            self.POST()
+
     def POST(self):
       raise NotImplementedError
 
@@ -47,7 +52,7 @@ class api_request:
         if all(i in data for i in needed_fields):
             base_station = str(data.base_station)
             imsi =  str(data.imsi)
-            mac = str(base64.b64decode(data.mac))
+            mac = base64.b64decode(str(data.mac))
             results = web.db.select(web.fb_config.t_base_stations, \
                 where="id=$id", vars={'id': base_station})
             try:
@@ -69,18 +74,20 @@ class api_request:
         self._verify_cert(cert)
         key = self._cert_to_key(cert)
         h = SHA.new()
-        for k,v in sorted(params.items(), key=lambda x: x[0]):
+        for k,v in sorted(data.items(), key=lambda x: x[0]):
           h.update("%s=%s" % (k, v))
         verifier = PKCS1_PSS.new(key)
         if not verifier.verify(h, mac):
+          web.log.error("Failed to verify sig: %s" % key)
           raise web.Forbidden()
 
     def _verify_cert(self, cert):
-        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path, "-crl_check_all"], \
+        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path], \
                    stdin = PIPE, stdout = PIPE, stderr = PIPE)
 
         message, error = p1.communicate(cert)
         if p1.returncode != 0:
+          web.log.error("Failed to verify cert: %s" % web.fb_config.ca_path)
           raise web.Forbidden()
 
     def _cert_to_key(self, cert):
@@ -129,6 +136,7 @@ class register(api_request):
         email = str(data.email)
         password =  str(data.password)
         imsi =  str(data.imsi)
+        base_station =  str(data.base_station)
         if not web.AccountManager.add(email, password, imsi, base_station):
             web.log.info("Registration failed for imsi %s with %s on basestation %s" % \
                           ( imsi, email, base_station))
@@ -142,7 +150,7 @@ class unsubscribe(api_request):
     def POST(self):
         data = web.input()
         web.log.debug("Trying to unsubscribe: %s" % data)
-        self.verify(data, fields=["imsi", "base_station"])
+        self.verify(data)
         result = web.db.select(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
         if not (result and web.AccountManager.remove(imsi)):
             web.log.info("Failed to unsubscribe imsi %s, doesn't exist" % imsi)
@@ -204,7 +212,7 @@ class AccountManager:
 
   def __init__(self):
     self.accounts = threading.local().__dict__
-    key_file = open(self.app.config.key_file, 'r')
+    key_file = open(web.fb_config.key_file, 'r')
     self.key = RSA.importKey(key_file.read())
 
   """

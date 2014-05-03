@@ -7,7 +7,6 @@ from Crypto.Hash import SHA
 from Crypto.Signature import PKCS1_PSS
 import base64
 
-
 class FacebookAPIClient(FacebookSessionProvider):
   def __init__(self, app):
     self.app = app

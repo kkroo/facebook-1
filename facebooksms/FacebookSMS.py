@@ -14,6 +14,7 @@ class FacebookSMS:
     self.cmd_handler = CommandHandler(self)
     self.msg_sender = self._init_sender(self.conf.sender_type)
     self._init_db()
+    self._init_api()
     self.log = self.conf.log
     self._init_api()
     self.log.debug("Init done.")
@@ -31,7 +32,6 @@ class FacebookSMS:
       self.conf.config_dict['api_key'] = r.text.encode('ascii', 'ignore')
       conf_file = open("/etc/facebooksms/client.yaml", "w")
       yaml.dump(self.conf.config_dict, conf_file)
-
 
   def _init_session_provider(self, provider_type):
       if provider_type == "test":

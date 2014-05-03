@@ -14,7 +14,6 @@ from Crypto.PublicKey import RSA
 from Crypto.Util.asn1 import DerSequence
 import base64
 
-
 class api_request:
     def POST(self):
       raise NotImplementedError
@@ -22,7 +21,7 @@ class api_request:
     def verify(self, data, fields=list()):
         needed_fields = ["imsi", "mac"] + fields
         if all(i in data for i in needed_fields):
-            mac = str(base64.b64decode(data.mac))
+            mac = base64.b64decode(str(data.mac))
 
             #Verify MAC
             params = dict(data)
@@ -37,14 +36,14 @@ class api_request:
         self._verify_cert(cert)
         key = self._cert_to_key(cert)
         h = SHA.new()
-        for k,v in sorted(params.items(), key=lambda x: x[0]):
+        for k,v in sorted(data.items(), key=lambda x: x[0]):
           h.update("%s=%s" % (k, v))
         verifier = PKCS1_PSS.new(key)
         if not verifier.verify(h, mac):
           raise web.Forbidden()
 
     def _verify_cert(self, cert):
-        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path, "-crl_check_all"], \
+        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path], \
                    stdin = PIPE, stdout = PIPE, stderr = PIPE)
 
         message, error = p1.communicate(cert)
