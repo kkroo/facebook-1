@@ -1,0 +1,20 @@
+#
+# CONFIG FOR API SERVER
+#
+
+#Log settings
+log_dir:           '/var/log/facebooksms'
+log_level:         'DEBUG'
+
+# API provider..
+api_url:           'API_URL_HERE'
+
+# Private key for XMPP server. The cert for this lives on the basestation
+key_file:          '/etc/facebooksms/xmpp.key'
+cert_file:         '/etc/facebooksms/xmpp.crt'
+
+# The API server signed cert
+api_cert_file:     '/etc/facebooksms/api.crt'
+
+# Path to CA cert
+ca_path:           '/etc/facebooksms/ca'

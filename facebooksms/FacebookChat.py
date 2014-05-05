@@ -72,6 +72,10 @@ class FacebookChatSession(FacebookSessionProvider):
     # do the search
     q = self.web_session.get('https://m.facebook.com/search/', params={'search': 'people', 'query': name_query}, headers=self.web_headers)
 
+    if 'login_form' in q.text:
+      self.log.error("Auth exception")
+      raise AuthError()
+
     h = fromstring(q.text.encode('utf-8'))
     sel = CSSSelector('div.listSelector tr td.name')
     sel_link = CSSSelector('a')

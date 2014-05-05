@@ -16,10 +16,10 @@ setup(name="facebooksms",
           'Crypto'
       ],
       dependency_links=['http://github.com/kkroo/SleekXMPP/tarball/master'],
-      scripts=['facebooksms-interactive', 'web/facebooksms-server.py'],
+      scripts=['facebooksms-interactive', 'web/facebooksms-xmpp-server.py'],
       data_files=[
                       ('/var/log/facebooksms', []),
-                      ('/etc/facebooksms/', ['conf/server.yaml']),
-                      ('/etc/lighttpd/conf-enabled/', ['web/10-facebooksms-server-fastcgi.conf']),
+                      ('/etc/facebooksms/', ['conf/xmpp.yaml']),
+                      ('/etc/lighttpd/conf-enabled/', ['web/10-facebooksms-xmpp-server-fastcgi.conf']),
                   ]
 )

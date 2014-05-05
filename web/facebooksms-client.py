@@ -6,68 +6,13 @@ import web, requests
 import syslog
 from vbts_interconnects import vbts_util
 import re
-from facebooksms import Config
+from facebooksms import Config, api_request
 from ESL import *
-from Crypto.Hash import SHA
-from Crypto.Signature import PKCS1_PSS
-from Crypto.PublicKey import RSA
-from Crypto.Util.asn1 import DerSequence
-import base64
-
-class api_request:
-    def POST(self):
-      raise NotImplementedError
-
-    def verify(self, data, fields=list()):
-        needed_fields = ["imsi", "mac"] + fields
-        if all(i in data for i in needed_fields):
-            mac = base64.b64decode(str(data.mac))
-
-            #Verify MAC
-            params = dict(data)
-            del params['mac']
-            cert = open(web.fb_config.api_cert_file).read()
-            self._verify_signature(params, mac, cert)
-        else:
-          web.log.debug("Failed request, missing args")
-          raise web.BadRequest()
-
-    def _verify_signature(self, data, mac, cert):
-        self._verify_cert(cert)
-        key = self._cert_to_key(cert)
-        h = SHA.new()
-        for k,v in sorted(data.items(), key=lambda x: x[0]):
-          h.update("%s=%s" % (k, v))
-        verifier = PKCS1_PSS.new(key)
-        if not verifier.verify(h, mac):
-          raise web.Forbidden()
-
-    def _verify_cert(self, cert):
-        p1 = Popen(["openssl", "verify", "-CApath", web.fb_config.ca_path], \
-                   stdin = PIPE, stdout = PIPE, stderr = PIPE)
-
-        message, error = p1.communicate(cert)
-        if p1.returncode != 0:
-          raise web.Forbidden()
-
-    def _cert_to_key(self, cert):
-        # Convert from PEM to DER
-        lines = cert.replace(" ",'').split()
-        der = base64.b64decode(''.join(lines[1:-1]))
-
-        # Extract subjectPublicKeyInfo field from X.509 certificate (see RFC3280)
-        cert = DerSequence()
-        cert.decode(der)
-        tbsCertificate = DerSequence()
-        tbsCertificate.decode(cert[0])
-        subjectPublicKeyInfo = tbsCertificate[6]
-
-        # Initialize RSA key
-        return RSA.importKey(subjectPublicKeyInfo)
-
-
 
 class callback(api_request):
+    def __init__(self):
+      self.config = web.fb_config
+
     def POST(self):
         data = web.input()
         self.verify(data, fields=["sender_id", "sender_name", "body"])

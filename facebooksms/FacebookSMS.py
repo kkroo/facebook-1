@@ -3,6 +3,7 @@ import re
 import requests
 from facebooksms import *
 import yaml
+import json
 
 class FacebookSMS:
   def __init__(self, conf):
@@ -13,9 +14,8 @@ class FacebookSMS:
     self.session_provider = self._init_session_provider(self.conf.provider_type)
     self.cmd_handler = CommandHandler(self)
     self.msg_sender = self._init_sender(self.conf.sender_type)
-    self._init_db()
-    self._init_api()
     self.log = self.conf.log
+    self._init_db()
     self._init_api()
     self.log.debug("Init done.")
 
@@ -28,10 +28,18 @@ class FacebookSMS:
       r = requests.post("%s/base_station" % self.conf.api_url, params={'callback_url': callback_url, 'cert': cert}, verify=False)
       if r.status_code != 202:
         self.log.error("Couldn't get API key status %s" % r.status_code )
-        raise Exception("Couldn't get API key status %s:\n%s" % r.status_code )
-      self.conf.config_dict['api_key'] = r.text.encode('ascii', 'ignore')
+        raise Exception("Couldn't get API key status %s" % r.status_code )
+      resp = json.loads(r.text.encode('ascii', 'ignore'))
+
+      # Get our API Key
+      self.conf.config_dict['api_key'] = resp['api_key']
       conf_file = open("/etc/facebooksms/client.yaml", "w")
       yaml.dump(self.conf.config_dict, conf_file)
+
+      # Get API Server cert
+      cert = resp['cert']
+      cert_file = open(self.conf.api_cert_file, "w")
+      cert_file.write(cert)
 
   def _init_session_provider(self, provider_type):
       if provider_type == "test":

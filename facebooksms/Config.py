@@ -5,11 +5,12 @@ class Config:
     self.config_dict = config_dict
     self.log = logger
 
-  # verify safety of db table names
-    self._scrub(self.config_dict['t_users'])
+    if 'db_file' in self.config_dict:
+        # verify safety of db table names
+        self._scrub(self.config_dict['t_users'])
 
-    self.db_conn = sqlite3.connect(self.db_file)
-    self.log.debug("Connnected to DB: %s" % self.db_file)
+        self.db_conn = sqlite3.connect(self.db_file)
+        self.log.debug("Connnected to DB: %s" % self.db_file)
 
   def _scrub(self, string):
     """ Make sure the string is alphanumeric. We do this to sanitize our
@@ -85,14 +86,14 @@ class Config:
 
   @property
   def api_cert_file(self):
-    return self.config_dict['cert_file']
+    return self.config_dict['api_cert_file']
 
   @property
   def key_file(self):
     return self.config_dict['key_file']
 
   @property
-  def key(self):
-    return self.config_dict['key']
+  def enable_registration(self):
+    return self.config_dict['enable_registration']
 
 
