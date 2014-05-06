@@ -6,7 +6,8 @@ import web, requests
 import logging
 import json
 import sys, os
-from facebooksms import Post, FacebookChatSession, AuthError, Config, WebCommonBase
+from facebooksms import Post, FacebookChatSession, AuthError, Config
+from facebooksms.WebCommon import WebCommonBase
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 import base64

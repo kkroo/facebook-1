@@ -7,7 +7,8 @@ import logging
 import uuid
 import json
 import sys, os
-from facebooksms import Post, AuthError, Config, WebCommonBase
+from facebooksms import Post, AuthError, Config
+from facebooksms.WebCommon import WebCommonBase
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 import base64

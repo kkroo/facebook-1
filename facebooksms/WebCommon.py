@@ -1,4 +1,4 @@
-import web, requests
+import requests
 from Crypto.Hash import SHA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.PublicKey import RSA
@@ -11,6 +11,7 @@ class WebCommonBase:
       raise NotImplementedError
 
     def verify(self, data, fields=list()):
+        import web
         needed_fields = ["imsi", "mac"] + fields
         if all(i in data for i in needed_fields):
             self._verify_channel(data)
@@ -26,6 +27,7 @@ class WebCommonBase:
         self._verify_signature(params, mac, cert)
 
     def _verify_signature(self, data, mac, cert):
+        import web
         if not self._verify_cert(cert):
           raise web.Forbidden()
         key = self._cert_to_key(cert)
