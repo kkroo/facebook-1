@@ -21,7 +21,7 @@ setup(name="facebooksms",
                       ('/var/log/facebooksms', []),
                       ('/etc/facebooksms/', ['conf/client.yaml']),
                       ('/etc/lighttpd/conf-enabled/', ['web/10-facebooksms-client-fastcgi.conf']),
-                      ('/etc/freeswitch/chatplan/defaults/', ['freeswitch/91_route_facebook.xml']),
+                      ('/etc/freeswitch/chatplan/default/', ['freeswitch/91_route_facebook.xml']),
                       ('/usr/share/freeswitch/scripts/', \
                           ['freeswitch/VBTS_FacebookSMS_Main.py', 'freeswitch/VBTS_FacebookSMS_Callback.py'])
                   ]
