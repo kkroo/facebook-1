@@ -90,6 +90,7 @@ class logout(XMPPServerCommonBase):
         data = web.input()
         web.log.debug("Trying to logout: %s" % data)
         self.verify(data)
+        imsi = str(data.imsi)
         if not web.AccountManager.remove(imsi):
             web.log.info("Failed to logout imsi %s, doesn't exist" % imsi)
             raise web.BadRequest()

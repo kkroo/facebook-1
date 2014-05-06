@@ -32,9 +32,6 @@ class base_station:
     def __init__(self):
       self.config = web.fb_config
 
-    def GET(self):
-      self.POST()
-
     def POST(self):
         if not web.fb_config.enable_registration:
           raise web.NotFound()
@@ -56,9 +53,6 @@ class base_station:
 class APICommonBase(WebCommonBase):
     def __init__(self):
       self.config = web.fb_config
-
-    def GET(self):
-      self.POST()
 
     def _verify_channel(self, data):
         if "base_station" in data:
@@ -240,12 +234,6 @@ def start():
 #
 
 class reauth(APICommonBase):
-    def __init__(self):
-      self.config = web.fb_config
-
-    def GET(self):
-      self.POST()
-
     def _verify_channel(self, data):
       return WebCommonBase._verify_channel(self, data)
 
@@ -273,9 +261,9 @@ class reauth(APICommonBase):
             web.db.delete(web.fb_config.t_users, where="imsi=$imsi", vars={'imsi': imsi})
             raise e
 
-class message_handler(WebCommonBase):
-    def __init__(self):
-      self.config = web.fb_config
+class message_handler(APICommonBase):
+    def _verify_channel(self, data):
+      return WebCommonBase._verify_channel(self, data)
 
     def POST(self):
         data = web.input()
@@ -289,12 +277,12 @@ class message_handler(WebCommonBase):
 
         accounts = web.db.select([self.config.t_users, self.config.t_base_stations], \
             where="imsi=$imsi " + \
-              "AND %s.base_station = %s.id" % (self.config.t_users, self.onfig.t_base_stations), \
+              "AND %s.base_station = %s.id" % (self.config.t_users, self.config.t_base_stations), \
             vars={"imsi": imsi})
         account = accounts[0]
         if account:
-          web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s" % \
-              (sender_id, body, imsi, account.base_station))
+          web.log.info("Sending incoming message to base station: from=%s, body=%s, to=%s, base_station=%s, url=%s" % \
+              (sender_id, body, imsi, account.base_station, account.callback_url))
           params = {'imsi': account.imsi, 'sender_id': sender_id, 'sender_name': sender_name, 'body': body}
           params['mac'] = WebCommonBase.compute_mac(params, self.key)
           r = requests.post(account.callback_url, params, verify=False) # XXX THIS IS INSECURE!!!

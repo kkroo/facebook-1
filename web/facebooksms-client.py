@@ -7,10 +7,10 @@ import syslog
 from vbts_interconnects import vbts_util
 import re
 from facebooksms import Config
-from facebooksms.WebCommon import WebCommon
+from facebooksms.WebCommon import WebCommonBase
 from ESL import *
 
-class callback(WebCommon):
+class callback(WebCommonBase):
     def __init__(self):
       self.config = web.fb_config
 
