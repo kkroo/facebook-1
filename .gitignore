@@ -3,5 +3,9 @@ build/
 *.pyc
 *.sqlite3
 *.log
+*.crt
+*.bak
+*.key
 deb_dist
 facebooksms.egg-info
+8630517f.0

@@ -10,17 +10,7 @@ class CommandError(RuntimeError):
 class CommandHandler(object):
 
     """
-    The command handler performs authentication and basic syntax checking for
-    commands. We dispatch the command to the right handler, then check whether
-    or not the issuer of the command is authorized to execute it. We also
-    verify the command has the right number of arguments. The semantics of each
-    command should be implemented elsewhere -- we'll check whether or not the
-    command is semantically valid where it's defined.
-
-    If command handling fails at any point, we raise a CommandError. The value
-    of the exception should be sent as a reply by the calling application.
-
-    TODO: we really should validate arguments here (should all be ints).
+    This takes commands from the BTS and invokes the appropriate handlers
     """
     def __init__(self, app):
         self.app = app

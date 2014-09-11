@@ -1,5 +1,5 @@
 #
-# CONFIG FOR API CLIENT
+# CONFIG FOR BTS CLIENT
 #
 
 #DB settings
@@ -17,29 +17,26 @@ app_number:       9999
 number_prefix:    999
 
 # Sender settings
-sender_type:      'test'
+sender_type:      'freeswitch'
 
 # Facebook session provider
 provider_type:     'api'
 
 # The basestation key and signed cert
-key_file:          '/etc/facebooksms/client.pem'
-cert_file:         '/etc/facebooksms/client.cert'
+key_file:          '/etc/facebooksms/client.key'
+cert_file:         '/etc/facebooksms/client.crt'
 
 # The API server signed cert
-api_cert_file:     '/etc/facebooksms/api.cert'
+api_cert_file:     '/etc/facebooksms/api.crt'
 
 # Path to CA cert
 ca_path:           '/etc/facebooksms/ca'
 
 # If using the API provider..
-api_url:           'API_URL_HERE'
+api_url:           'http://127.0.0.1:8080'
 
-# API Key (get this by visiting ${api_url}/base_station?callback_url=${client_callback}
+# API Key
 api_key:           ''
 
-# Callback settings
-callback_protocol: 'http'
-callback_port:     '80'
-callback_path:     '/callback'
-
+callback_protocol: 'https'
+callback_port: 8081

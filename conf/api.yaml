@@ -3,28 +3,32 @@
 #
 
 #Log settings
-log_dir:            '/var/log/facebooksms'
-log_level:          'DEBUG'
+log_dir:             '/var/log/facebooksms'
+log_level:           'DEBUG'
 
 # DB Schema
-t_base_stations:    'basestations'
-t_users:            'users'
+t_base_stations:     'basestations'
+t_users:             'users'
 
-# XMPP API provider..
-api_url:            'XMPP_SERVER_URL'
+# URL of the api server
+server_url:          'https://localhost:8080'
 
 # API DB file
-db_file:            '/etc/facebooksms/api.db'
+db_file:             '/etc/facebooksms/api.db'
 
 # Private key for API server. The cert for this lives on the basestation
-key_file:           '/etc/facebooksms/api.key'
-cert_file:          '/etc/facebooksms/api.crt'
+key_file:            '/etc/facebooksms/api.key'
+cert_file:           '/etc/facebooksms/api.crt'
 
 # The XMPP server signed cert
-api_cert_file:      '/etc/facebooksms/xmpp.crt'
+api_cert_file:       '/etc/facebooksms/api.crt'
 
 # Path to CA cert
-ca_path:            '/etc/facebooksms/ca'
+ca_path:             '/etc/facebooksms/ca'
 
 # Enable base station registration? (Open otherwise)
-enable_registration: False
+enable_registration: True
+
+# FB app credentials
+fb_client_secret:    ''
+fb_client_id:        ''

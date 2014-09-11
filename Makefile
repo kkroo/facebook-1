@@ -1,4 +1,4 @@
-client api_server xmpp_server:
+client server:
 	make clean
 	ln -s setup_$@.py setup.py
 	make build

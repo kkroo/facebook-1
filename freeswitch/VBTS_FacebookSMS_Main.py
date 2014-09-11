@@ -1,23 +1,10 @@
 #!/usr/bin/python
-from libvbts import FreeSwitchMessenger
-from freeswitch import *
 import logging
 import sys
 import re
 import time
-import facebooksms
+from facebooksms.bts import *
 import yaml
-
-class FreeSwitchSender(facebooksms.Sender):
-
-    def __init__(self, fbsms):
-        self.fbsms = fbsms
-
-    def send_sms(self, sender, recipient, subject, data):
-        sender = str(sender)
-        subject = '' if subject is None else "%s: " % subject
-        consoleLog('info', str("sending '%s' to %s from %s\n" % (data, recipient, sender)))
-        self.fbsms.fs.send_smqueue_sms("", recipient, sender, subject + data)
 
 def chat(message, args):
     args = args.split('|')
@@ -34,20 +21,18 @@ def chat(message, args):
         exit(1)
 
 
-    facebooksms_log = logging.getLogger("facebooksms.main")
+    facebooksms_log = logging.getLogger("facebooksms.client")
     conf_file = open("/etc/facebooksms/client.yaml", "r")
     config_dict = yaml.load("".join(conf_file.readlines()))
-    conf = facebooksms.Config(config_dict, facebooksms_log)
-    logging.basicConfig(filename="%s/main.log" % conf.log_dir, level=conf.log_level)
+    conf = BTSConfig(config_dict, facebooksms_log)
+    logging.basicConfig(filename="%s/client.log" % conf.log_dir, level=conf.log_level)
 
-    app = facebooksms.FacebookSMS(conf)
-    app.fs = FreeSwitchMessenger.FreeSwitchMessenger()
-    fss = FreeSwitchSender(app)
-    app.msg_sender = fss
+
+    app = FacebookSMS(conf)
 
     consoleLog('info', "Got '%s' from %s(%s) to %s\n" % (text, fromm, imsi, to))
     facebooksms_log.info("Got '%s' from %s(%s) to %s" % (text, fromm, imsi, to))
-    msg = facebooksms.Message(fromm, to, None, text, imsi)
+    msg = Message(fromm, to, None, text, imsi)
     app.handle_incoming_sms(msg)
 
 def fsapi(session, stream, env, args):
