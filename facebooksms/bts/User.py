@@ -31,7 +31,6 @@ class User:
       raise Exception("Error occured while saving user to DB: %s" % e)
 
     user = User(app, number)
-    user.fb.register()
     return user
 
 
